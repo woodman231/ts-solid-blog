@@ -13,13 +13,24 @@ export class AuthService implements IAuthService {
     private clientId: string,
     private clientSecret: string
   ) {
+    // Get additional ADB2C configuration from environment
+    const adb2cDomainName = process.env.ADBC2_DOMAIN_NAME || '';
+    const adb2cTenantName = process.env.ADB2C_TENANT_NAME || '';
+    const adb2cSignUpSignInPolicyName = process.env.ADB2C_SIGNUP_SIGNIN_POLICY_NAME || '';
+    
+    // Construct the authority URL using ADB2C specific format
+    const authorityUrl = `https://${adb2cDomainName}/${adb2cTenantName}/${adb2cSignUpSignInPolicyName}`;
+    
     this.msalInstance = new ConfidentialClientApplication({
       auth: {
         clientId: this.clientId,
-        authority: `https://login.microsoftonline.com/${this.tenantId}`,
-        clientSecret: this.clientSecret
+        clientSecret: this.clientSecret,
+        authority: authorityUrl,
+        knownAuthorities: [adb2cDomainName] // Add the domain as a known authority
       }
     });
+    
+    logger.info(`Configured ADB2C authority: ${authorityUrl}`);
   }
 
   async validateToken(token: string): Promise<{ valid: boolean; userId?: string }> {
