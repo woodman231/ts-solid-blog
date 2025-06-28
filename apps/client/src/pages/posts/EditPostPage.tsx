@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import { useSocketStore } from '../../lib/socket';
 import { useForm } from '@tanstack/react-form';
@@ -40,17 +40,26 @@ export function EditPostPage() {
         },
     });
 
-    // Create form with post data
+    // Create form with post data - wait for data to be available
     const form = useForm({
         defaultValues: {
-            title: data?.title || '',
-            description: data?.description || '',
-            body: data?.body || '',
+            title: '',
+            description: '',
+            body: '',
         },
         onSubmit: async ({ value }) => {
             await handleSubmit(value);
         },
     });
+
+    // Update form values when data is loaded
+    useEffect(() => {
+        if (data) {
+            form.setFieldValue('title', data.title || '');
+            form.setFieldValue('description', data.description || '');
+            form.setFieldValue('body', data.body || '');
+        }
+    }, [data, form]);
 
     const handleSubmit = async (values: { title: string; description: string; body: string }) => {
         setIsSubmitting(true);
@@ -121,118 +130,120 @@ export function EditPostPage() {
                     </div>
                 )}
 
-                <form
-                    onSubmit={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        form.handleSubmit();
-                    }}
-                    className="space-y-6"
-                >
-                    <form.Field
-                        name="title"
-                        validators={{
-                            onChange: ({ value }) => {
-                                const result = postSchema.shape.title.safeParse(value);
-                                return result.success ? undefined : result.error.issues[0]?.message;
-                            },
+                <form.Provider>
+                    <form
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            form.handleSubmit();
                         }}
+                        className="space-y-6"
                     >
-                        {(field) => (
-                            <div>
-                                <label htmlFor={field.name} className="form-label">
-                                    Title
-                                </label>
-                                <input
-                                    id={field.name}
-                                    name={field.name}
-                                    value={field.state.value}
-                                    onChange={(e) => field.handleChange(e.target.value)}
-                                    onBlur={field.handleBlur}
-                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                                />
-                                {field.state.meta.errors ? (
-                                    <p className="mt-1 text-sm text-red-600">
-                                        {field.state.meta.errors.join(', ')}
-                                    </p>
-                                ) : null}
-                            </div>
-                        )}
-                    </form.Field>
-
-                    <form.Field
-                        name="description"
-                        validators={{
-                            onChange: ({ value }) => {
-                                const result = postSchema.shape.description.safeParse(value);
-                                return result.success ? undefined : result.error.issues[0]?.message;
-                            },
-                        }}
-                    >
-                        {(field) => (
-                            <div>
-                                <label htmlFor={field.name} className="form-label">
-                                    Description
-                                </label>
-                                <input
-                                    id={field.name}
-                                    name={field.name}
-                                    value={field.state.value}
-                                    onChange={(e) => field.handleChange(e.target.value)}
-                                    onBlur={field.handleBlur}
-                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                                />
-                                {field.state.meta.errors ? (
-                                    <p className="mt-1 text-sm text-red-600">
-                                        {field.state.meta.errors.join(', ')}
-                                    </p>
-                                ) : null}
-                            </div>
-                        )}
-                    </form.Field>
-
-                    <form.Field
-                        name="body"
-                        validators={{
-                            onChange: ({ value }) => {
-                                const result = postSchema.shape.body.safeParse(value);
-                                return result.success ? undefined : result.error.issues[0]?.message;
-                            },
-                        }}
-                    >
-                        {(field) => (
-                            <div>
-                                <label htmlFor={field.name} className="form-label">
-                                    Content
-                                </label>
-                                <textarea
-                                    id={field.name}
-                                    name={field.name}
-                                    value={field.state.value}
-                                    onChange={(e) => field.handleChange(e.target.value)}
-                                    onBlur={field.handleBlur}
-                                    rows={10}
-                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                                />
-                                {field.state.meta.errors ? (
-                                    <p className="mt-1 text-sm text-red-600">
-                                        {field.state.meta.errors.join(', ')}
-                                    </p>
-                                ) : null}
-                            </div>
-                        )}
-                    </form.Field>
-
-                    <div className="flex justify-end">
-                        <button
-                            type="submit"
-                            className="btn btn-primary"
-                            disabled={isSubmitting}
+                        <form.Field
+                            name="title"
+                            validators={{
+                                onChange: ({ value }) => {
+                                    const result = postSchema.shape.title.safeParse(value);
+                                    return result.success ? undefined : result.error.issues[0]?.message;
+                                },
+                            }}
                         >
-                            {isSubmitting ? 'Saving...' : 'Save Changes'}
-                        </button>
-                    </div>
-                </form>
+                            {(field) => (
+                                <div>
+                                    <label htmlFor={field.name} className="form-label">
+                                        Title
+                                    </label>
+                                    <input
+                                        id={field.name}
+                                        name={field.name}
+                                        value={field.state.value}
+                                        onChange={(e) => field.handleChange(e.target.value)}
+                                        onBlur={field.handleBlur}
+                                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                    />
+                                    {field.state.meta.errors ? (
+                                        <p className="mt-1 text-sm text-red-600">
+                                            {field.state.meta.errors.join(', ')}
+                                        </p>
+                                    ) : null}
+                                </div>
+                            )}
+                        </form.Field>
+
+                        <form.Field
+                            name="description"
+                            validators={{
+                                onChange: ({ value }) => {
+                                    const result = postSchema.shape.description.safeParse(value);
+                                    return result.success ? undefined : result.error.issues[0]?.message;
+                                },
+                            }}
+                        >
+                            {(field) => (
+                                <div>
+                                    <label htmlFor={field.name} className="form-label">
+                                        Description
+                                    </label>
+                                    <input
+                                        id={field.name}
+                                        name={field.name}
+                                        value={field.state.value}
+                                        onChange={(e) => field.handleChange(e.target.value)}
+                                        onBlur={field.handleBlur}
+                                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                    />
+                                    {field.state.meta.errors ? (
+                                        <p className="mt-1 text-sm text-red-600">
+                                            {field.state.meta.errors.join(', ')}
+                                        </p>
+                                    ) : null}
+                                </div>
+                            )}
+                        </form.Field>
+
+                        <form.Field
+                            name="body"
+                            validators={{
+                                onChange: ({ value }) => {
+                                    const result = postSchema.shape.body.safeParse(value);
+                                    return result.success ? undefined : result.error.issues[0]?.message;
+                                },
+                            }}
+                        >
+                            {(field) => (
+                                <div>
+                                    <label htmlFor={field.name} className="form-label">
+                                        Content
+                                    </label>
+                                    <textarea
+                                        id={field.name}
+                                        name={field.name}
+                                        value={field.state.value}
+                                        onChange={(e) => field.handleChange(e.target.value)}
+                                        onBlur={field.handleBlur}
+                                        rows={10}
+                                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                    />
+                                    {field.state.meta.errors ? (
+                                        <p className="mt-1 text-sm text-red-600">
+                                            {field.state.meta.errors.join(', ')}
+                                        </p>
+                                    ) : null}
+                                </div>
+                            )}
+                        </form.Field>
+
+                        <div className="flex justify-end">
+                            <button
+                                type="submit"
+                                className="btn btn-primary"
+                                disabled={isSubmitting}
+                            >
+                                {isSubmitting ? 'Saving...' : 'Save Changes'}
+                            </button>
+                        </div>
+                    </form>
+                </form.Provider>
             </div>
         </div>
     );

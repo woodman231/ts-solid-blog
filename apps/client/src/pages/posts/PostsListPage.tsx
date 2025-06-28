@@ -11,7 +11,7 @@ import {
 } from '@tanstack/react-table';
 import { PostWithAuthor } from '@blog/shared/src/models/Post';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
-import { FetchEntitiesRequest, EntityDataResponse } from '@blog/shared/src/index';
+import { FetchEntitiesRequest, EntityDataResponse, LoadPageRequest } from '@blog/shared/src/index';
 import { Menu, Transition } from '@headlessui/react';
 import { EllipsisVerticalIcon } from '@heroicons/react/20/solid';
 import { Fragment } from 'react';
@@ -27,7 +27,25 @@ export function PostsListPage() {
     const [pageSize, setPageSize] = useState(20);
     const [postToDelete, setPostToDelete] = useState<string | null>(null);
     const { user: account } = useAuth();
-    const userId = account?.localAccountId || '';
+
+    // Fetch current user data to get the database user ID
+    const { data: currentUser } = useQuery({
+        queryKey: ['currentUser'],
+        queryFn: async () => {
+            const request: LoadPageRequest = {
+                requestType: 'loadPage',
+                requestParams: {
+                    pageName: 'currentUser',
+                },
+            };
+
+            const response = await sendRequest<LoadPageRequest, EntityDataResponse>(request);
+            return response.responseParams.entities.data.user?.[0];
+        },
+        enabled: !!account, // Only fetch if user is authenticated
+    });
+
+    const userId = currentUser?.id || '';
 
     // Convert sorting state to server format
     const serverSort = sorting.reduce((acc, sort) => {
@@ -113,56 +131,58 @@ export function PostsListPage() {
                 if (!isAuthor) return null;
 
                 return (
-                    <Menu as="div" className="relative inline-block text-left">
-                        <div>
-                            <Menu.Button className="flex items-center text-gray-400 hover:text-gray-600">
-                                <span className="sr-only">Open options</span>
-                                <EllipsisVerticalIcon className="h-5 w-5" aria-hidden="true" />
-                            </Menu.Button>
-                        </div>
+                    <div className="flex justify-end">
+                        <Menu as="div" className="relative inline-block text-left">
+                            <div>
+                                <Menu.Button className="flex items-center text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100">
+                                    <span className="sr-only">Open options</span>
+                                    <EllipsisVerticalIcon className="h-5 w-5" aria-hidden="true" />
+                                </Menu.Button>
+                            </div>
 
-                        <Transition
-                            as={Fragment}
-                            enter="transition ease-out duration-100"
-                            enterFrom="transform opacity-0 scale-95"
-                            enterTo="transform opacity-100 scale-100"
-                            leave="transition ease-in duration-75"
-                            leaveFrom="transform opacity-100 scale-100"
-                            leaveTo="transform opacity-0 scale-95"
-                        >
-                            <Menu.Items className="absolute right-0 z-10 mt-2 w-36 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                                <div className="py-1">
-                                    <Menu.Item>
-                                        {({ active }) => (
-                                            <Link
-                                                to="/posts/$postId/edit"
-                                                params={{ postId: post.id }}
-                                                className={`
+                            <Transition
+                                as={Fragment}
+                                enter="transition ease-out duration-100"
+                                enterFrom="transform opacity-0 scale-95"
+                                enterTo="transform opacity-100 scale-100"
+                                leave="transition ease-in duration-75"
+                                leaveFrom="transform opacity-100 scale-100"
+                                leaveTo="transform opacity-0 scale-95"
+                            >
+                                <Menu.Items className="absolute right-0 z-50 mt-2 w-36 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                                    <div className="py-1">
+                                        <Menu.Item>
+                                            {({ active }) => (
+                                                <Link
+                                                    to="/posts/$postId/edit"
+                                                    params={{ postId: post.id }}
+                                                    className={`
                           ${active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'} 
                           block px-4 py-2 text-sm
                         `}
-                                            >
-                                                Edit
-                                            </Link>
-                                        )}
-                                    </Menu.Item>
-                                    <Menu.Item>
-                                        {({ active }) => (
-                                            <button
-                                                onClick={() => setPostToDelete(post.id)}
-                                                className={`
+                                                >
+                                                    Edit
+                                                </Link>
+                                            )}
+                                        </Menu.Item>
+                                        <Menu.Item>
+                                            {({ active }) => (
+                                                <button
+                                                    onClick={() => setPostToDelete(post.id)}
+                                                    className={`
                           ${active ? 'bg-gray-100 text-red-700' : 'text-red-600'} 
                           block px-4 py-2 text-sm w-full text-left
                         `}
-                                            >
-                                                Delete
-                                            </button>
-                                        )}
-                                    </Menu.Item>
-                                </div>
-                            </Menu.Items>
-                        </Transition>
-                    </Menu>
+                                                >
+                                                    Delete
+                                                </button>
+                                            )}
+                                        </Menu.Item>
+                                    </div>
+                                </Menu.Items>
+                            </Transition>
+                        </Menu>
+                    </div>
                 );
             },
         }),
@@ -220,7 +240,7 @@ export function PostsListPage() {
                     </div>
                 </div>
 
-                <div className="overflow-x-auto rounded-lg border border-gray-200">
+                <div className="rounded-lg border border-gray-200 overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             {table.getHeaderGroups().map(headerGroup => (
@@ -252,7 +272,7 @@ export function PostsListPage() {
                                 table.getRowModel().rows.map(row => (
                                     <tr key={row.id} className="hover:bg-gray-50">
                                         {row.getVisibleCells().map(cell => (
-                                            <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 relative">
                                                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                             </td>
                                         ))}

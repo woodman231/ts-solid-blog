@@ -91,6 +91,30 @@ export async function handleLoadPage(
             });
             break;
 
+        case 'currentUser':
+            if (!userId) {
+                throw new Error('User must be authenticated to get current user info');
+            }
+
+            const currentUser = await services.userService.getUserById(userId);
+
+            callback({
+                responseType: 'setEntityData',
+                responseParams: {
+                    entities: {
+                        data: {
+                            user: currentUser ? [currentUser] : []
+                        },
+                        total: 1,
+                        page: 0,
+                        limit: 1,
+                        filteredTotal: currentUser ? 1 : 0,
+                        totalPages: 1
+                    }
+                }
+            });
+            break;
+
         case 'postDetails':
             const postIdParam = request.requestParams.postId;
             if (!postIdParam) {
