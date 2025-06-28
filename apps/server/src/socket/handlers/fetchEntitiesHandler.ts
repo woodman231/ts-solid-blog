@@ -3,6 +3,7 @@ import { FetchEntitiesRequest } from '@blog/shared/src/socket/Request';
 import { EntityDataResponse } from '@blog/shared/src/socket/Response';
 import { IUserService } from '../../core/interfaces/userService';
 import { IPostService } from '../../core/interfaces/postService';
+import { QueryOptions, PaginatedResult } from '@blog/shared/src/types/pagination';
 
 export async function handleFetchEntities(
   socket: Socket,
@@ -16,28 +17,21 @@ export async function handleFetchEntities(
   const { entityType, filterOptions, sort, page = 0, limit = 10 } = request.requestParams;
   const userId = socket.data.userId;
 
-  let entities: any[] = [];
-  let total = 0;
+  const queryOptions: QueryOptions = {
+    pagination: { page, limit },
+    sort,
+    filter: filterOptions,
+  };
+
+  let result: PaginatedResult<any>;
 
   switch (entityType) {
     case 'users':
-      entities = await services.userService.getAllUsers({
-        sort,
-        page,
-        limit,
-        filter: filterOptions
-      });
-      total = entities.length; // In a real app, you'd get the total count from the database
+      result = await services.userService.getAllUsers(queryOptions);
       break;
 
     case 'posts':
-      entities = await services.postService.getAllPosts({
-        sort,
-        page,
-        limit,
-        filter: filterOptions
-      });
-      total = entities.length; // In a real app, you'd get the total count from the database
+      result = await services.postService.getAllPosts(queryOptions);
       break;
 
     default:
@@ -49,12 +43,13 @@ export async function handleFetchEntities(
     responseParams: {
       entities: {
         data: {
-          [entityType]: entities
+          [entityType]: result.data
         },
-        total,
-        page,
-        limit,
-        filteredTotal: entities.length
+        total: result.total,
+        filteredTotal: result.filteredTotal,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
       }
     }
   });

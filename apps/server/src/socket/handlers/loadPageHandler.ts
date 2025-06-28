@@ -3,6 +3,7 @@ import { LoadPageRequest } from '@blog/shared/src/socket/Request';
 import { EntityDataResponse } from '@blog/shared/src/socket/Response';
 import { IUserService } from '../../core/interfaces/userService';
 import { IPostService } from '../../core/interfaces/postService';
+import { QueryOptions } from '@blog/shared/src/types/pagination';
 
 export async function handleLoadPage(
     socket: Socket,
@@ -17,28 +18,27 @@ export async function handleLoadPage(
     const userId = socket.data.userId;
 
     // Default pagination settings
-    const page = 0;
-    const limit = 10;
+    const queryOptions: QueryOptions = {
+        pagination: { page: 0, limit: 10 },
+        sort: { createdAt: 'desc' }
+    };
 
     switch (pageName) {
         case 'usersList':
-            const users = await services.userService.getAllUsers({
-                page,
-                limit,
-                sort: { createdAt: 'desc' }
-            });
+            const usersResult = await services.userService.getAllUsers(queryOptions);
 
             callback({
                 responseType: 'setEntityData',
                 responseParams: {
                     entities: {
                         data: {
-                            users
+                            users: usersResult.data
                         },
-                        total: users.length, // In real app, would be actual total count
-                        page,
-                        limit,
-                        filteredTotal: users.length
+                        total: usersResult.total,
+                        page: usersResult.page,
+                        limit: usersResult.limit,
+                        filteredTotal: usersResult.filteredTotal,
+                        totalPages: usersResult.totalPages
                     }
                 }
             });
@@ -64,30 +64,28 @@ export async function handleLoadPage(
                         total: 1,
                         page: 0,
                         limit: 1,
-                        filteredTotal: user ? 1 : 0
+                        filteredTotal: user ? 1 : 0,
+                        totalPages: 1
                     }
                 }
             });
             break;
 
         case 'postsList':
-            const posts = await services.postService.getAllPosts({
-                page,
-                limit,
-                sort: { createdAt: 'desc' }
-            });
+            const postsResult = await services.postService.getAllPosts(queryOptions);
 
             callback({
                 responseType: 'setEntityData',
                 responseParams: {
                     entities: {
                         data: {
-                            posts
+                            posts: postsResult.data
                         },
-                        total: posts.length, // In real app, would be actual total count
-                        page,
-                        limit,
-                        filteredTotal: posts.length
+                        total: postsResult.total,
+                        page: postsResult.page,
+                        limit: postsResult.limit,
+                        filteredTotal: postsResult.filteredTotal,
+                        totalPages: postsResult.totalPages
                     }
                 }
             });
@@ -118,7 +116,8 @@ export async function handleLoadPage(
                         total: 1,
                         page: 0,
                         limit: 1,
-                        filteredTotal: post ? 1 : 0
+                        filteredTotal: post ? 1 : 0,
+                        totalPages: 1
                     }
                 }
             });

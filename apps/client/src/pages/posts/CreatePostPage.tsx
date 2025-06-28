@@ -5,6 +5,7 @@ import { useForm } from '@tanstack/react-form';
 import { z } from 'zod';
 import { Link } from '@tanstack/react-router';
 import { CreateEntityRequest, SuccessResponse } from '@blog/shared/src/index';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Form validation schema
 const postSchema = z.object({
@@ -16,6 +17,7 @@ const postSchema = z.object({
 export function CreatePostPage() {
     const { sendRequest } = useSocketStore();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -33,6 +35,10 @@ export function CreatePostPage() {
             };
 
             await sendRequest<CreateEntityRequest, SuccessResponse>(request);
+
+            // Invalidate posts queries to refetch fresh data
+            await queryClient.invalidateQueries({ queryKey: ['posts'] });
+
             navigate({ to: '/posts' });
         } catch (error) {
             setSubmitError(error instanceof Error ? error.message : 'Failed to create post');

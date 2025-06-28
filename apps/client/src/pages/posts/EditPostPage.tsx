@@ -5,7 +5,7 @@ import { useForm } from '@tanstack/react-form';
 import { z } from 'zod';
 import { Link } from '@tanstack/react-router';
 import { UpdateEntityRequest, LoadPageRequest, EntityDataResponse, SuccessResponse } from '@blog/shared/src/index';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 
 // Form validation schema
@@ -19,6 +19,7 @@ export function EditPostPage() {
     const { postId } = useParams({ from: '/layout/posts/$postId/edit' });
     const { sendRequest } = useSocketStore();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -69,6 +70,11 @@ export function EditPostPage() {
             };
 
             await sendRequest<UpdateEntityRequest, SuccessResponse>(request);
+
+            // Invalidate relevant queries to refetch fresh data
+            await queryClient.invalidateQueries({ queryKey: ['posts'] });
+            await queryClient.invalidateQueries({ queryKey: ['post', postId] });
+
             navigate({ to: '/posts/$postId', params: { postId } });
         } catch (error) {
             if (error instanceof z.ZodError) {

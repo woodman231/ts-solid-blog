@@ -1,35 +1,65 @@
 import { PrismaClient } from '@prisma/client';
 import { Post } from '@blog/shared/src/models/Post';
 import { IPostRepository } from '../core/interfaces/postRepository';
+import { QueryOptions, PaginatedResult } from '@blog/shared/src/types/pagination';
 
 export class PostRepository implements IPostRepository {
-  constructor(private prisma: PrismaClient) {}
+  constructor(private prisma: PrismaClient) { }
 
-  async findAll(options?: { 
-    page?: number; 
-    limit?: number; 
-    sort?: Record<string, 'asc' | 'desc'>;
-    filter?: Record<string, any>;
-  }): Promise<Post[]> {
-    const { page = 0, limit = 10, sort = { createdAt: 'desc' }, filter = {} } = options || {};
-    
-    // Convert sort to Prisma format
-    const orderBy = Object.entries(sort).map(([key, value]) => ({
-      [key]: value
-    }));
+  async findAll(options?: QueryOptions): Promise<PaginatedResult<Post>> {
+    const page = options?.pagination?.page ?? 0;
+    const limit = options?.pagination?.limit ?? 10;
+    const skip = page * limit;
 
-    // Convert filter to Prisma format
-    const where = filter;
+    // Build where clause for filtering
+    const where: any = {};
+    if (options?.filter) {
+      Object.keys(options.filter).forEach(key => {
+        if (options.filter![key] !== undefined && options.filter![key] !== null) {
+          // Handle different filter types
+          if (typeof options.filter![key] === 'string') {
+            where[key] = {
+              contains: options.filter![key],
+              mode: 'insensitive'
+            };
+          } else {
+            where[key] = options.filter![key];
+          }
+        }
+      });
+    }
 
-    const posts = await this.prisma.post.findMany({
-      where,
-      orderBy,
-      skip: page * limit,
-      take: limit,
-      include: { author: true }
-    });
+    // Build orderBy clause for sorting
+    const orderBy: any = {};
+    if (options?.sort) {
+      Object.keys(options.sort).forEach(key => {
+        orderBy[key] = options.sort![key];
+      });
+    } else {
+      orderBy.createdAt = 'desc'; // Default sort
+    }
 
-    return posts.map(this.mapToPost);
+    // Execute queries in parallel
+    const [posts, total, filteredTotal] = await Promise.all([
+      this.prisma.post.findMany({
+        where,
+        orderBy,
+        skip,
+        take: limit,
+        include: { author: true }
+      }),
+      this.prisma.post.count(), // Total count without filters
+      this.prisma.post.count({ where }), // Total count with filters
+    ]);
+
+    return {
+      data: posts.map(this.mapToPost),
+      total,
+      filteredTotal,
+      page,
+      limit,
+      totalPages: Math.ceil(filteredTotal / limit),
+    };
   }
 
   async findById(id: string): Promise<Post | null> {

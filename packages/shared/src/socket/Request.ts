@@ -1,3 +1,5 @@
+import { FilterOptions, SortOptions } from '../types/pagination';
+
 // Base request interface
 export interface BaseRequestParams {
   [key: string]: any;
@@ -18,14 +20,6 @@ export interface LoadPageRequest extends BaseRequest<LoadPageRequestParams> {
 }
 
 // Fetch entities
-export interface FilterOptions {
-  [key: string]: any;
-}
-
-export interface SortOptions {
-  [key: string]: 'asc' | 'desc';
-}
-
 export interface FetchEntitiesRequestParams extends BaseRequestParams {
   entityType: string;
   filterOptions?: FilterOptions;

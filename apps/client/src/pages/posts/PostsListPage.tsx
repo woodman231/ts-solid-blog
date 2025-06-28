@@ -1,13 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { useSocketStore } from '../../lib/socket';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Link } from '@tanstack/react-router';
 import {
     createColumnHelper,
     flexRender,
     getCoreRowModel,
-    getPaginationRowModel,
-    getSortedRowModel,
     SortingState,
     useReactTable,
 } from '@tanstack/react-table';
@@ -25,28 +23,44 @@ export function PostsListPage() {
     const [sorting, setSorting] = useState<SortingState>([
         { id: 'createdAt', desc: true },
     ]);
+    const [currentPage, setCurrentPage] = useState(0);
+    const [pageSize, setPageSize] = useState(20);
     const [postToDelete, setPostToDelete] = useState<string | null>(null);
     const { user: account } = useAuth();
     const userId = account?.localAccountId || '';
 
-    // Fetch posts data
+    // Convert sorting state to server format
+    const serverSort = sorting.reduce((acc, sort) => {
+        acc[sort.id] = sort.desc ? 'desc' : 'asc';
+        return acc;
+    }, {} as Record<string, 'asc' | 'desc'>);
+
+    // Fetch posts data with server-side pagination
     const { data, isLoading, error, refetch } = useQuery({
-        queryKey: ['posts'],
+        queryKey: ['posts', currentPage, pageSize, serverSort],
         queryFn: async () => {
             const request: FetchEntitiesRequest = {
                 requestType: 'fetchEntities',
                 requestParams: {
                     entityType: 'posts',
-                    sort: { createdAt: 'desc' },
-                    page: 0,
-                    limit: 50,
+                    sort: serverSort,
+                    page: currentPage,
+                    limit: pageSize,
                 },
             };
 
             const response = await sendRequest<FetchEntitiesRequest, EntityDataResponse>(request);
             return response.responseParams.entities;
         },
+        staleTime: 1000 * 30, // 30 seconds - shorter stale time for list pages
+        refetchOnMount: 'always', // Always refetch when component mounts
     });
+
+    // Handle sorting changes
+    const handleSortingChange = useCallback((updater: any) => {
+        setSorting(updater);
+        setCurrentPage(0); // Reset to first page when sorting changes
+    }, []);
 
     // Column definition for the table
     const columnHelper = createColumnHelper<PostWithAuthor>();
@@ -155,6 +169,9 @@ export function PostsListPage() {
     ];
 
     const posts = data?.data?.posts || [];
+    const totalPages = data?.totalPages || 0;
+    const total = data?.total || 0;
+    const filteredTotal = data?.filteredTotal || 0;
 
     const table = useReactTable({
         data: posts,
@@ -162,10 +179,10 @@ export function PostsListPage() {
         state: {
             sorting,
         },
-        onSortingChange: setSorting,
+        onSortingChange: handleSortingChange,
         getCoreRowModel: getCoreRowModel(),
-        getSortedRowModel: getSortedRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
+        manualSorting: true, // Enable server-side sorting
+        manualPagination: true, // Enable server-side pagination
     });
 
     const handleDeleteSuccess = () => {
@@ -190,12 +207,17 @@ export function PostsListPage() {
             <div className="space-y-6">
                 <div className="flex justify-between items-center">
                     <h1 className="text-2xl font-bold">Posts</h1>
-                    <Link
-                        to="/posts/create"
-                        className="btn btn-primary"
-                    >
-                        Create Post
-                    </Link>
+                    <div className="flex items-center gap-4">
+                        <div className="text-sm text-gray-600">
+                            Showing {posts.length} of {filteredTotal} posts ({total} total)
+                        </div>
+                        <Link
+                            to="/posts/create"
+                            className="btn btn-primary"
+                        >
+                            Create Post
+                        </Link>
+                    </div>
                 </div>
 
                 <div className="overflow-x-auto rounded-lg border border-gray-200">
@@ -207,7 +229,7 @@ export function PostsListPage() {
                                         <th
                                             key={header.id}
                                             scope="col"
-                                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none"
+                                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:bg-gray-100"
                                             onClick={header.column.getToggleSortingHandler()}
                                         >
                                             {header.column.getCanSort() ? (
@@ -226,7 +248,7 @@ export function PostsListPage() {
                             ))}
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {table.getRowModel().rows.length > 0 ? (
+                            {posts.length > 0 ? (
                                 table.getRowModel().rows.map(row => (
                                     <tr key={row.id} className="hover:bg-gray-50">
                                         {row.getVisibleCells().map(cell => (
@@ -247,27 +269,54 @@ export function PostsListPage() {
                     </table>
                 </div>
 
-                {/* Pagination Controls */}
+                {/* Server-side Pagination Controls */}
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <button
-                            className="btn btn-secondary"
-                            onClick={() => table.previousPage()}
-                            disabled={!table.getCanPreviousPage()}
-                        >
-                            Previous
-                        </button>
-                        <button
-                            className="btn btn-secondary"
-                            onClick={() => table.nextPage()}
-                            disabled={!table.getCanNextPage()}
-                        >
-                            Next
-                        </button>
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <button
+                                className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+                                disabled={currentPage === 0 || isLoading}
+                            >
+                                Previous
+                            </button>
+                            <button
+                                className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
+                                disabled={currentPage >= totalPages - 1 || isLoading}
+                            >
+                                Next
+                            </button>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <label htmlFor="pageSize" className="text-sm text-gray-700">
+                                Page size:
+                            </label>
+                            <select
+                                id="pageSize"
+                                value={pageSize}
+                                onChange={(e) => {
+                                    setPageSize(Number(e.target.value));
+                                    setCurrentPage(0);
+                                }}
+                                className="text-sm border border-gray-300 rounded-md px-2 py-1"
+                            >
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                            </select>
+                        </div>
                     </div>
-                    <div className="text-sm text-gray-500">
-                        Page {table.getState().pagination.pageIndex + 1} of{' '}
-                        {table.getPageCount()}
+
+                    <div className="flex items-center gap-4 text-sm text-gray-700">
+                        <span>
+                            Page {currentPage + 1} of {totalPages}
+                        </span>
+                        <span>
+                            ({((currentPage * pageSize) + 1).toLocaleString()}-{Math.min((currentPage + 1) * pageSize, filteredTotal).toLocaleString()} of {filteredTotal.toLocaleString()})
+                        </span>
                     </div>
                 </div>
             </div>

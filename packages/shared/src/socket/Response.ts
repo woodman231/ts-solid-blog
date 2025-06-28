@@ -15,9 +15,10 @@ export interface EntityDataResponseParams<T = any> extends BaseResponseParams {
       [entityType: string]: T[];
     };
     total: number;
+    filteredTotal: number;
     page: number;
     limit: number;
-    filteredTotal: number;
+    totalPages: number;
   };
 }
 

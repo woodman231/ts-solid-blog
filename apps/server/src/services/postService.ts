@@ -2,22 +2,28 @@ import { IPostService } from '../core/interfaces/postService';
 import { IPostRepository } from '../core/interfaces/postRepository';
 import { IUserRepository } from '../core/interfaces/userRepository';
 import { Post, PostWithAuthor } from '@blog/shared/src/models/Post';
+import { QueryOptions, PaginatedResult } from '@blog/shared/src/types/pagination';
 
 export class PostService implements IPostService {
   constructor(
     private postRepository: IPostRepository,
     private userRepository: IUserRepository
-  ) {}
+  ) { }
 
-  async getAllPosts(options?: any): Promise<PostWithAuthor[]> {
-    const posts = await this.postRepository.findAll(options);
-    return await this.enrichPostsWithAuthor(posts);
+  async getAllPosts(options?: QueryOptions): Promise<PaginatedResult<PostWithAuthor>> {
+    const result = await this.postRepository.findAll(options);
+    const enrichedPosts = await this.enrichPostsWithAuthor(result.data);
+
+    return {
+      ...result,
+      data: enrichedPosts
+    };
   }
 
   async getPostById(id: string): Promise<PostWithAuthor | null> {
     const post = await this.postRepository.findById(id);
     if (!post) return null;
-    
+
     return await this.enrichPostWithAuthor(post);
   }
 
@@ -40,7 +46,7 @@ export class PostService implements IPostService {
     if (!(await this.isAuthorized(id, authorId))) {
       throw new Error('Unauthorized: User is not the author of this post');
     }
-    
+
     return this.postRepository.update(id, postData);
   }
 
@@ -49,7 +55,7 @@ export class PostService implements IPostService {
     if (!(await this.isAuthorized(id, authorId))) {
       throw new Error('Unauthorized: User is not the author of this post');
     }
-    
+
     return this.postRepository.delete(id);
   }
 
@@ -60,7 +66,7 @@ export class PostService implements IPostService {
 
   private async enrichPostWithAuthor(post: Post): Promise<PostWithAuthor> {
     const author = await this.userRepository.findById(post.authorId);
-    
+
     return {
       ...post,
       author: {
@@ -73,11 +79,11 @@ export class PostService implements IPostService {
   private async enrichPostsWithAuthor(posts: Post[]): Promise<PostWithAuthor[]> {
     // Get unique author IDs
     const authorIds = [...new Set(posts.map(post => post.authorId))];
-    
+
     // Fetch all authors at once
     const authorsPromises = authorIds.map(id => this.userRepository.findById(id));
     const authors = await Promise.all(authorsPromises);
-    
+
     // Create a map of author ID to author data for quick lookups
     const authorMap = new Map();
     authors.forEach(author => {
@@ -85,7 +91,7 @@ export class PostService implements IPostService {
         authorMap.set(author.id, author);
       }
     });
-    
+
     // Add author data to each post
     return posts.map(post => ({
       ...post,
