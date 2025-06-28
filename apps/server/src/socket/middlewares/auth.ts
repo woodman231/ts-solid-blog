@@ -10,22 +10,22 @@ export async function socketAuthMiddleware(
 ): Promise<void> {
   try {
     // Get auth token from handshake
-    const token = socket.handshake.auth.token;
-    
+    const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
+
     if (!token) {
       return next(new Error('Authentication error: Token not provided'));
     }
-    
+
     // Validate token
     const { valid, userId } = await authService.validateToken(token);
-    
+
     if (!valid || !userId) {
       return next(new Error('Authentication error: Invalid token'));
     }
-    
+
     // Store user ID in socket data for later use
     socket.data.userId = userId;
-    
+
     next();
   } catch (error) {
     logger.error('Socket auth middleware error', error);
