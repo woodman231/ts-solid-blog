@@ -1,4 +1,4 @@
-import { Router, Route, RootRoute, redirect } from '@tanstack/react-router';
+import { createRouter, createRoute, createRootRoute, redirect } from '@tanstack/react-router';
 import { msalInstance } from './auth/msal';
 import { MainLayout } from './components/layouts/MainLayout';
 import { HomePage } from './pages/HomePage';
@@ -11,17 +11,17 @@ import { EditPostPage } from './pages/posts/EditPostPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 // Define routes with authentication guards
-const rootRoute = new RootRoute();
+const rootRoute = createRootRoute();
 
 // Layout route
-const layoutRoute = new Route({
+const layoutRoute = createRoute({
     getParentRoute: () => rootRoute,
     id: 'layout',
     component: MainLayout,
 });
 
 // Home page route - public
-const homeRoute = new Route({
+const homeRoute = createRoute({
     getParentRoute: () => layoutRoute,
     path: '/',
     component: HomePage,
@@ -43,57 +43,57 @@ const authGuard = () => {
 };
 
 // Users routes - protected
-const usersRoute = new Route({
+const usersRoute = createRoute({
     getParentRoute: () => layoutRoute,
     path: 'users',
     beforeLoad: authGuard,
 });
 
-const usersListRoute = new Route({
+const usersListRoute = createRoute({
     getParentRoute: () => usersRoute,
     path: '/',
     component: UsersListPage,
 });
 
-const userDetailsRoute = new Route({
+const userDetailsRoute = createRoute({
     getParentRoute: () => usersRoute,
     path: '$userId',
     component: UserDetailsPage,
 });
 
 // Posts routes - protected
-const postsRoute = new Route({
+const postsRoute = createRoute({
     getParentRoute: () => layoutRoute,
     path: 'posts',
     beforeLoad: authGuard,
 });
 
-const postsListRoute = new Route({
+const postsListRoute = createRoute({
     getParentRoute: () => postsRoute,
     path: '/',
     component: PostsListPage,
 });
 
-const postDetailsRoute = new Route({
+const postDetailsRoute = createRoute({
     getParentRoute: () => postsRoute,
     path: '$postId',
     component: PostDetailsPage,
 });
 
-const createPostRoute = new Route({
+const createPostRoute = createRoute({
     getParentRoute: () => postsRoute,
     path: 'create',
     component: CreatePostPage,
 });
 
-const editPostRoute = new Route({
+const editPostRoute = createRoute({
     getParentRoute: () => postsRoute,
     path: '$postId/edit',
     component: EditPostPage,
 });
 
 // 404 route
-const notFoundRoute = new Route({
+const notFoundRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '*',
     component: NotFoundPage,
@@ -117,7 +117,7 @@ export const routeTree = rootRoute.addChildren([
     notFoundRoute,
 ]);
 
-export const router = new Router({ routeTree });
+export const router = createRouter({ routeTree });
 
 // Register router types
 declare module '@tanstack/react-router' {
