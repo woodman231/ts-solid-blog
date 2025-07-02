@@ -16,14 +16,47 @@ export class PostRepository implements IPostRepository {
     if (options?.filter) {
       Object.keys(options.filter).forEach(key => {
         if (options.filter![key] !== undefined && options.filter![key] !== null) {
-          // Handle different filter types
-          if (typeof options.filter![key] === 'string') {
-            where[key] = {
-              contains: options.filter![key],
-              mode: 'insensitive'
-            };
+          // Handle global search filter
+          if (key === 'globalSearch') {
+            const searchTerm = options.filter![key] as string;
+            where.OR = [
+              {
+                title: {
+                  contains: searchTerm,
+                  mode: 'insensitive'
+                }
+              },
+              {
+                description: {
+                  contains: searchTerm,
+                  mode: 'insensitive'
+                }
+              },
+              {
+                body: {
+                  contains: searchTerm,
+                  mode: 'insensitive'
+                }
+              },
+              {
+                author: {
+                  displayName: {
+                    contains: searchTerm,
+                    mode: 'insensitive'
+                  }
+                }
+              }
+            ];
           } else {
-            where[key] = options.filter![key];
+            // Handle other filter types
+            if (typeof options.filter![key] === 'string') {
+              where[key] = {
+                contains: options.filter![key],
+                mode: 'insensitive'
+              };
+            } else {
+              where[key] = options.filter![key];
+            }
           }
         }
       });

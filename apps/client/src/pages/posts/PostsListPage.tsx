@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useSocketStore } from '../../lib/socket';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Link } from '@tanstack/react-router';
 import {
     createColumnHelper,
@@ -13,7 +13,7 @@ import { PostWithAuthor } from '@blog/shared/src/models/Post';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { FetchEntitiesRequest, EntityDataResponse, LoadPageRequest } from '@blog/shared/src/index';
 import { Menu, Transition } from '@headlessui/react';
-import { EllipsisVerticalIcon } from '@heroicons/react/20/solid';
+import { EllipsisVerticalIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid';
 import { Fragment } from 'react';
 import { useAuth } from '../../auth/useAuth';
 import { DeletePostDialog } from '../../components/posts/DeletePostDialog';
@@ -23,6 +23,8 @@ export function PostsListPage() {
     const [sorting, setSorting] = useState<SortingState>([
         { id: 'createdAt', desc: true },
     ]);
+    const [globalFilter, setGlobalFilter] = useState('');
+    const [debouncedGlobalFilter, setDebouncedGlobalFilter] = useState('');
     const [currentPage, setCurrentPage] = useState(0);
     const [pageSize, setPageSize] = useState(20);
     const [postToDelete, setPostToDelete] = useState<string | null>(null);
@@ -47,6 +49,15 @@ export function PostsListPage() {
 
     const userId = currentUser?.id || '';
 
+    // Debounce global filter to avoid too many API calls
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedGlobalFilter(globalFilter);
+        }, 300); // 300ms delay
+
+        return () => clearTimeout(timer);
+    }, [globalFilter]);
+
     // Convert sorting state to server format
     const serverSort = sorting.reduce((acc, sort) => {
         // Map client column IDs to server field names
@@ -59,9 +70,9 @@ export function PostsListPage() {
         return acc;
     }, {} as Record<string, 'asc' | 'desc'>);
 
-    // Fetch posts data with server-side pagination
+    // Fetch posts data with server-side pagination and filtering
     const { data, isLoading, error, refetch } = useQuery({
-        queryKey: ['posts', currentPage, pageSize, serverSort],
+        queryKey: ['posts', currentPage, pageSize, serverSort, debouncedGlobalFilter],
         queryFn: async () => {
             const request: FetchEntitiesRequest = {
                 requestType: 'fetchEntities',
@@ -70,6 +81,7 @@ export function PostsListPage() {
                     sort: serverSort,
                     page: currentPage,
                     limit: pageSize,
+                    filterOptions: debouncedGlobalFilter ? { globalSearch: debouncedGlobalFilter } : undefined,
                 },
             };
 
@@ -84,6 +96,12 @@ export function PostsListPage() {
     const handleSortingChange = useCallback((updater: any) => {
         setSorting(updater);
         setCurrentPage(0); // Reset to first page when sorting changes
+    }, []);
+
+    // Handle global filter changes
+    const handleGlobalFilterChange = useCallback((value: string) => {
+        setGlobalFilter(value);
+        setCurrentPage(0); // Reset to first page when filter changes
     }, []);
 
     // Column definition for the table
@@ -205,11 +223,14 @@ export function PostsListPage() {
         columns,
         state: {
             sorting,
+            globalFilter: debouncedGlobalFilter,
         },
         onSortingChange: handleSortingChange,
+        onGlobalFilterChange: handleGlobalFilterChange,
         getCoreRowModel: getCoreRowModel(),
         manualSorting: true, // Enable server-side sorting
         manualPagination: true, // Enable server-side pagination
+        manualFiltering: true, // Enable server-side filtering
     });
 
     const handleDeleteSuccess = () => {
@@ -236,7 +257,13 @@ export function PostsListPage() {
                     <h1 className="text-2xl font-bold">Posts</h1>
                     <div className="flex items-center gap-4">
                         <div className="text-sm text-gray-600">
-                            Showing {posts.length} of {filteredTotal} posts ({total} total)
+                            Showing {posts.length} of {filteredTotal} posts
+                            {debouncedGlobalFilter && filteredTotal !== total && (
+                                <span className="text-primary-600"> (filtered from {total} total)</span>
+                            )}
+                            {!debouncedGlobalFilter && (
+                                <span> ({total} total)</span>
+                            )}
                         </div>
                         <Link
                             to="/posts/create"
@@ -245,6 +272,30 @@ export function PostsListPage() {
                             Create Post
                         </Link>
                     </div>
+                </div>
+
+                {/* Global Search Filter */}
+                <div className="flex items-center gap-4">
+                    <div className="flex-1 relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Search posts..."
+                            value={globalFilter}
+                            onChange={(e) => handleGlobalFilterChange(e.target.value)}
+                            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        />
+                    </div>
+                    {globalFilter && (
+                        <button
+                            onClick={() => handleGlobalFilterChange('')}
+                            className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        >
+                            Clear
+                        </button>
+                    )}
                 </div>
 
                 <div className="rounded-lg border border-gray-200 overflow-x-auto">
