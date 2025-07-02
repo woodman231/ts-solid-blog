@@ -247,81 +247,83 @@ export function DataTable<T>({
             )}
 
             {/* Table */}
-            <div className="rounded-lg border border-gray-200 overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        {table.getHeaderGroups().map(headerGroup => (
-                            <tr key={headerGroup.id}>
-                                {headerGroup.headers.map(header => {
-                                    const columnId = header.column.id;
-                                    const filterConfig = columnFilterConfigs[columnId];
-                                    const filterValue = columnFilters[columnId];
+            <div className="rounded-lg border border-gray-200">
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            {table.getHeaderGroups().map(headerGroup => (
+                                <tr key={headerGroup.id}>
+                                    {headerGroup.headers.map(header => {
+                                        const columnId = header.column.id;
+                                        const filterConfig = columnFilterConfigs[columnId];
+                                        const filterValue = columnFilters[columnId];
 
-                                    return (
-                                        <th
-                                            key={header.id}
-                                            scope="col"
-                                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                        >
-                                            <div className="space-y-2">
-                                                {/* Column Header with Sorting */}
-                                                <div
-                                                    className={`flex items-center gap-2 ${header.column.getCanSort() ? 'cursor-pointer select-none hover:bg-gray-100 p-1 -m-1 rounded' : ''
-                                                        }`}
-                                                    onClick={header.column.getToggleSortingHandler()}
-                                                >
-                                                    <span>
-                                                        {typeof header.column.columnDef.header === 'string'
-                                                            ? header.column.columnDef.header
-                                                            : flexRender(header.column.columnDef.header, header.getContext())
-                                                        }
-                                                    </span>
-                                                    {header.column.getCanSort() && (
+                                        return (
+                                            <th
+                                                key={header.id}
+                                                scope="col"
+                                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider relative"
+                                            >
+                                                <div className="space-y-2">
+                                                    {/* Column Header with Sorting */}
+                                                    <div
+                                                        className={`flex items-center gap-2 ${header.column.getCanSort() ? 'cursor-pointer select-none hover:bg-gray-100 p-1 -m-1 rounded' : ''
+                                                            }`}
+                                                        onClick={header.column.getToggleSortingHandler()}
+                                                    >
                                                         <span>
-                                                            {header.column.getIsSorted() === 'asc' ? ' 🔼' : header.column.getIsSorted() === 'desc' ? ' 🔽' : ''}
+                                                            {typeof header.column.columnDef.header === 'string'
+                                                                ? header.column.columnDef.header
+                                                                : flexRender(header.column.columnDef.header, header.getContext())
+                                                            }
                                                         </span>
+                                                        {header.column.getCanSort() && (
+                                                            <span>
+                                                                {header.column.getIsSorted() === 'asc' ? ' 🔼' : header.column.getIsSorted() === 'desc' ? ' 🔽' : ''}
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Column Filter */}
+                                                    {enableColumnFilters && filterConfig && (
+                                                        <ColumnFilter
+                                                            config={filterConfig}
+                                                            value={filterValue}
+                                                            onChange={(filter) => handleColumnFilterChange(columnId, filter)}
+                                                            header={typeof header.column.columnDef.header === 'string'
+                                                                ? header.column.columnDef.header
+                                                                : columnId
+                                                            }
+                                                        />
                                                     )}
                                                 </div>
-
-                                                {/* Column Filter */}
-                                                {enableColumnFilters && filterConfig && (
-                                                    <ColumnFilter
-                                                        config={filterConfig}
-                                                        value={filterValue}
-                                                        onChange={(filter) => handleColumnFilterChange(columnId, filter)}
-                                                        header={typeof header.column.columnDef.header === 'string'
-                                                            ? header.column.columnDef.header
-                                                            : columnId
-                                                        }
-                                                    />
-                                                )}
-                                            </div>
-                                        </th>
-                                    );
-                                })}
-                            </tr>
-                        ))}
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {tableData.length > 0 ? (
-                            table.getRowModel().rows.map(row => (
-                                <tr key={row.id} className="hover:bg-gray-50">
-                                    {row.getVisibleCells().map(cell => (
-                                        <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 relative">
-                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                        </td>
-                                    ))}
+                                            </th>
+                                        );
+                                    })}
                                 </tr>
-                            ))
-                        ) : (
-                            <tr>
-                                <td colSpan={columns.length} className="px-6 py-4 text-center text-sm text-gray-500">
-                                    No {entityType} found
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
+                            ))}
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {tableData.length > 0 ? (
+                                table.getRowModel().rows.map(row => (
+                                    <tr key={row.id} className="hover:bg-gray-50">
+                                        {row.getVisibleCells().map(cell => (
+                                            <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 relative">
+                                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={columns.length} className="px-6 py-4 text-center text-sm text-gray-500">
+                                        No {entityType} found
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* Pagination Controls */}

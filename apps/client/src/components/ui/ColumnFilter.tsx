@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { FunnelIcon, ChevronDownIcon } from '@heroicons/react/20/solid';
 
 // Filter types for different data types
@@ -35,8 +36,44 @@ export function ColumnFilter({ config, value, onChange, header }: ColumnFilterPr
     const [tempOperator, setTempOperator] = useState(value?.operator || getDefaultOperator(config.type));
     const [tempValue, setTempValue] = useState(value?.value || '');
     const [tempValue2, setTempValue2] = useState(value?.value2 || '');
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
 
     const operators = config.operators || getDefaultOperators(config.type);
+
+    // Calculate dropdown position when opening
+    useEffect(() => {
+        if (isOpen && buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            setDropdownPosition({
+                top: rect.bottom + window.scrollY + 4,
+                left: rect.left + window.scrollX,
+            });
+        }
+    }, [isOpen]);
+
+    // Close dropdown when clicking outside or scrolling
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        }
+
+        function handleScroll() {
+            setIsOpen(false); // Close on scroll for simplicity
+        }
+
+        if (isOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+            window.addEventListener('scroll', handleScroll, true);
+            return () => {
+                document.removeEventListener('mousedown', handleClickOutside);
+                window.removeEventListener('scroll', handleScroll, true);
+            };
+        }
+    }, [isOpen]);
 
     const handleApply = () => {
         if (!tempValue && tempOperator !== 'in') {
@@ -61,77 +98,93 @@ export function ColumnFilter({ config, value, onChange, header }: ColumnFilterPr
 
     const hasFilter = value && value.value !== '';
 
-    return (
-        <div className="relative">
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className={`flex items-center gap-1 px-2 py-1 text-xs rounded border ${hasFilter
-                        ? 'bg-primary-100 border-primary-300 text-primary-700'
-                        : 'bg-gray-100 border-gray-300 text-gray-600 hover:bg-gray-200'
-                    }`}
-            >
-                <FunnelIcon className="h-3 w-3" />
-                {hasFilter && (
-                    <span className="bg-primary-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs">
-                        1
-                    </span>
-                )}
-                <ChevronDownIcon className="h-3 w-3" />
-            </button>
+    // Dropdown content component
+    const dropdownContent = isOpen ? (
+        <div
+            ref={dropdownRef}
+            className="absolute bg-white border border-gray-300 rounded-md shadow-xl p-3 min-w-64 max-w-80"
+            style={{
+                top: `${dropdownPosition.top}px`,
+                left: `${dropdownPosition.left}px`,
+                zIndex: 99999,
+                position: 'fixed',
+            }}
+        >
+            <div className="space-y-3">
+                <div className="font-medium text-sm text-gray-900">{header}</div>
 
-            {isOpen && (
-                <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg p-3 z-50 min-w-64">
-                    <div className="space-y-3">
-                        <div className="font-medium text-sm text-gray-900">{header}</div>
+                {/* Operator Selection */}
+                <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Filter Type
+                    </label>
+                    <select
+                        value={tempOperator}
+                        onChange={(e) => setTempOperator(e.target.value)}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    >
+                        {operators.map((op) => (
+                            <option key={op} value={op}>
+                                {getOperatorLabel(op)}
+                            </option>
+                        ))}
+                    </select>
+                </div>
 
-                        {/* Operator Selection */}
-                        <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">
-                                Filter Type
-                            </label>
-                            <select
-                                value={tempOperator}
-                                onChange={(e) => setTempOperator(e.target.value)}
-                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                            >
-                                {operators.map((op) => (
-                                    <option key={op} value={op}>
-                                        {getOperatorLabel(op)}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                {/* Value Input */}
+                {renderValueInput(config, tempOperator, tempValue, setTempValue, tempValue2, setTempValue2)}
 
-                        {/* Value Input */}
-                        {renderValueInput(config, tempOperator, tempValue, setTempValue, tempValue2, setTempValue2)}
-
-                        {/* Action Buttons */}
-                        <div className="flex justify-between pt-2 border-t border-gray-200">
-                            <button
-                                onClick={handleClear}
-                                className="px-2 py-1 text-xs text-red-600 hover:text-red-800"
-                            >
-                                Clear
-                            </button>
-                            <div className="flex gap-1">
-                                <button
-                                    onClick={() => setIsOpen(false)}
-                                    className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleApply}
-                                    className="px-2 py-1 text-xs bg-primary-600 text-white rounded hover:bg-primary-700"
-                                >
-                                    Apply
-                                </button>
-                            </div>
-                        </div>
+                {/* Action Buttons */}
+                <div className="flex justify-between pt-2 border-t border-gray-200">
+                    <button
+                        onClick={handleClear}
+                        className="px-2 py-1 text-xs text-red-600 hover:text-red-800"
+                    >
+                        Clear
+                    </button>
+                    <div className="flex gap-1">
+                        <button
+                            onClick={() => setIsOpen(false)}
+                            className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleApply}
+                            className="px-2 py-1 text-xs bg-primary-600 text-white rounded hover:bg-primary-700"
+                        >
+                            Apply
+                        </button>
                     </div>
                 </div>
-            )}
+            </div>
         </div>
+    ) : null;
+
+    return (
+        <>
+            <div className="relative">
+                <button
+                    ref={buttonRef}
+                    onClick={() => setIsOpen(!isOpen)}
+                    className={`flex items-center gap-1 px-2 py-1 text-xs rounded border ${hasFilter
+                        ? 'bg-primary-100 border-primary-300 text-primary-700'
+                        : 'bg-gray-100 border-gray-300 text-gray-600 hover:bg-gray-200'
+                        }`}
+                >
+                    <FunnelIcon className="h-3 w-3" />
+                    {hasFilter && (
+                        <span className="bg-primary-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs">
+                            1
+                        </span>
+                    )}
+                    <ChevronDownIcon className="h-3 w-3" />
+                </button>
+            </div>
+
+            {/* Render dropdown as portal to avoid clipping */}
+            {dropdownContent && createPortal(dropdownContent, document.body)}
+        </>
     );
 }
 
