@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { Post } from '@blog/shared/src/models/Post';
 import { IPostRepository } from '../core/interfaces/postRepository';
 import { QueryOptions, PaginatedResult } from '@blog/shared/src/types/pagination';
+import { parseColumnFilters } from '../utils/filterParser';
 
 export class PostRepository implements IPostRepository {
   constructor(private prisma: PrismaClient) { }
@@ -12,54 +13,57 @@ export class PostRepository implements IPostRepository {
     const skip = page * limit;
 
     // Build where clause for filtering
-    const where: any = {};
+    let where: any = {};
+    let globalSearch: string | undefined;
+
     if (options?.filter) {
-      Object.keys(options.filter).forEach(key => {
-        if (options.filter![key] !== undefined && options.filter![key] !== null) {
-          // Handle global search filter
-          if (key === 'globalSearch') {
-            const searchTerm = options.filter![key] as string;
-            where.OR = [
-              {
-                title: {
-                  contains: searchTerm,
-                  mode: 'insensitive'
-                }
-              },
-              {
-                description: {
-                  contains: searchTerm,
-                  mode: 'insensitive'
-                }
-              },
-              {
-                body: {
-                  contains: searchTerm,
-                  mode: 'insensitive'
-                }
-              },
-              {
-                author: {
-                  displayName: {
-                    contains: searchTerm,
-                    mode: 'insensitive'
-                  }
-                }
-              }
-            ];
-          } else {
-            // Handle other filter types
-            if (typeof options.filter![key] === 'string') {
-              where[key] = {
-                contains: options.filter![key],
+      const parsedFilters = parseColumnFilters(options.filter);
+      where = parsedFilters.where;
+      globalSearch = parsedFilters.globalSearch;
+
+      // Handle global search filter (legacy support)
+      if (globalSearch) {
+        const globalConditions = [
+          {
+            title: {
+              contains: globalSearch,
+              mode: 'insensitive'
+            }
+          },
+          {
+            description: {
+              contains: globalSearch,
+              mode: 'insensitive'
+            }
+          },
+          {
+            body: {
+              contains: globalSearch,
+              mode: 'insensitive'
+            }
+          },
+          {
+            author: {
+              displayName: {
+                contains: globalSearch,
                 mode: 'insensitive'
-              };
-            } else {
-              where[key] = options.filter![key];
+              }
             }
           }
+        ];
+
+        // If there are other filters, combine with AND
+        if (Object.keys(where).length > 0) {
+          where = {
+            AND: [
+              where,
+              { OR: globalConditions }
+            ]
+          };
+        } else {
+          where.OR = globalConditions;
         }
-      });
+      }
     }
 
     // Build orderBy clause for sorting

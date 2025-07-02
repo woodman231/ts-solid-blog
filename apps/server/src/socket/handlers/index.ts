@@ -1,14 +1,14 @@
 import { Socket } from 'socket.io';
 import { IUserService } from '../../core/interfaces/userService';
 import { IPostService } from '../../core/interfaces/postService';
-import { 
+import {
   BaseRequest,
   isLoadPageRequest,
   isFetchEntitiesRequest,
   isCreateEntityRequest,
   isUpdateEntityRequest,
-  isDeleteEntityRequest 
-} from '@blog/shared/src/socket/Request';
+  isDeleteEntityRequest
+} from '@blog/shared';
 import { handleLoadPage } from './loadPageHandler';
 import { handleFetchEntities } from './fetchEntitiesHandler';
 import { handleCreateEntity } from './createEntityHandler';
@@ -26,23 +26,23 @@ export function setupEventHandlers(socket: Socket, services: Services): void {
   socket.on('request', async (request: BaseRequest, callback) => {
     try {
       logger.info(`Received request: ${request.requestType}`, { requestParams: request.requestParams });
-      
+
       // Route request to appropriate handler based on request type
       if (isLoadPageRequest(request)) {
         await handleLoadPage(socket, request, callback, services);
-      } 
+      }
       else if (isFetchEntitiesRequest(request)) {
         await handleFetchEntities(socket, request, callback, services);
-      } 
+      }
       else if (isCreateEntityRequest(request)) {
         await handleCreateEntity(socket, request, callback, services);
-      } 
+      }
       else if (isUpdateEntityRequest(request)) {
         await handleUpdateEntity(socket, request, callback, services);
-      } 
+      }
       else if (isDeleteEntityRequest(request)) {
         await handleDeleteEntity(socket, request, callback, services);
-      } 
+      }
       else {
         callback({
           responseType: 'error',
@@ -56,7 +56,7 @@ export function setupEventHandlers(socket: Socket, services: Services): void {
       }
     } catch (error: any) {
       logger.error(`Error handling request: ${request.requestType}`, error);
-      
+
       callback({
         responseType: 'error',
         responseParams: {

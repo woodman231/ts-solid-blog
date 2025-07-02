@@ -1,7 +1,6 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-    createColumnHelper,
     flexRender,
     getCoreRowModel,
     SortingState,
@@ -12,6 +11,11 @@ import { useSocketStore } from '../../lib/socket';
 import { FetchEntitiesRequest, EntityDataResponse } from '@blog/shared/src/index';
 import { LoadingSpinner } from './LoadingSpinner';
 import { MagnifyingGlassIcon } from '@heroicons/react/20/solid';
+import { ColumnFilter, ColumnFilterConfig, FilterValue } from './ColumnFilter';
+
+interface ColumnFilters {
+    [columnId: string]: FilterValue;
+}
 
 interface DataTableProps<T> {
     entityType: 'posts' | 'users';
@@ -19,6 +23,8 @@ interface DataTableProps<T> {
     initialSorting?: SortingState;
     enableGlobalFilter?: boolean;
     globalFilterPlaceholder?: string;
+    enableColumnFilters?: boolean;
+    columnFilterConfigs?: Record<string, ColumnFilterConfig>; // Config for each filterable column
     title: string;
     createButton?: React.ReactNode;
     defaultPageSize?: number;
@@ -33,6 +39,8 @@ export function DataTable<T>({
     initialSorting = [{ id: 'createdAt', desc: true }],
     enableGlobalFilter = false,
     globalFilterPlaceholder = 'Search...',
+    enableColumnFilters = false,
+    columnFilterConfigs = {},
     title,
     createButton,
     defaultPageSize = 20,
@@ -44,6 +52,7 @@ export function DataTable<T>({
     const [sorting, setSorting] = useState<SortingState>(initialSorting);
     const [globalFilter, setGlobalFilter] = useState('');
     const [debouncedGlobalFilter, setDebouncedGlobalFilter] = useState('');
+    const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
     const [currentPage, setCurrentPage] = useState(0);
     const [pageSize, setPageSize] = useState(defaultPageSize);
 
@@ -70,9 +79,27 @@ export function DataTable<T>({
         return acc;
     }, {} as Record<string, 'asc' | 'desc'>);
 
+    // Convert column filters to server format
+    const serverFilters: Record<string, any> = {};
+
+    // Add global search if enabled
+    if (debouncedGlobalFilter && enableGlobalFilter) {
+        serverFilters.globalSearch = debouncedGlobalFilter;
+    }
+
+    // Add column filters
+    Object.entries(columnFilters).forEach(([columnId, filter]) => {
+        if (filter && filter.value !== '') {
+            serverFilters[`${columnId}_${filter.operator}`] = filter.value;
+            if (filter.value2 !== undefined) {
+                serverFilters[`${columnId}_${filter.operator}_2`] = filter.value2;
+            }
+        }
+    });
+
     // Fetch data with server-side pagination, sorting, and filtering
     const { data, isLoading, error, refetch } = useQuery({
-        queryKey: [entityType, currentPage, pageSize, serverSort, debouncedGlobalFilter],
+        queryKey: [entityType, currentPage, pageSize, serverSort, serverFilters],
         queryFn: async () => {
             const request: FetchEntitiesRequest = {
                 requestType: 'fetchEntities',
@@ -81,9 +108,7 @@ export function DataTable<T>({
                     sort: serverSort,
                     page: currentPage,
                     limit: pageSize,
-                    filterOptions: debouncedGlobalFilter && enableGlobalFilter
-                        ? { globalSearch: debouncedGlobalFilter }
-                        : undefined,
+                    filterOptions: Object.keys(serverFilters).length > 0 ? serverFilters : undefined,
                 },
             };
 
@@ -106,6 +131,20 @@ export function DataTable<T>({
         setCurrentPage(0); // Reset to first page when filter changes
     }, []);
 
+    // Handle column filter changes
+    const handleColumnFilterChange = useCallback((columnId: string, filter: FilterValue | null) => {
+        setColumnFilters(prev => {
+            const newFilters = { ...prev };
+            if (filter) {
+                newFilters[columnId] = filter;
+            } else {
+                delete newFilters[columnId];
+            }
+            return newFilters;
+        });
+        setCurrentPage(0); // Reset to first page when filter changes
+    }, []);
+
     // Extract data
     const tableData = (data?.data?.[entityType] || []) as T[];
     const totalPages = data?.totalPages || 0;
@@ -125,14 +164,12 @@ export function DataTable<T>({
         columns,
         state: {
             sorting,
-            globalFilter: debouncedGlobalFilter,
         },
         onSortingChange: handleSortingChange,
-        onGlobalFilterChange: handleGlobalFilterChange,
         getCoreRowModel: getCoreRowModel(),
         manualSorting: true,
         manualPagination: true,
-        manualFiltering: enableGlobalFilter,
+        manualFiltering: true,
     });
 
     if (isLoading) {
@@ -147,6 +184,8 @@ export function DataTable<T>({
         );
     }
 
+    const activeFiltersCount = Object.keys(columnFilters).length + (debouncedGlobalFilter ? 1 : 0);
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -158,8 +197,11 @@ export function DataTable<T>({
                         {enableGlobalFilter && debouncedGlobalFilter && filteredTotal !== total && (
                             <span className="text-primary-600"> (filtered from {total} total)</span>
                         )}
-                        {(!enableGlobalFilter || !debouncedGlobalFilter) && (
+                        {(!enableGlobalFilter || !debouncedGlobalFilter) && activeFiltersCount === 0 && (
                             <span> ({total} total)</span>
+                        )}
+                        {activeFiltersCount > 0 && (
+                            <span className="text-primary-600"> ({activeFiltersCount} filter{activeFiltersCount > 1 ? 's' : ''} active)</span>
                         )}
                     </div>
                     {createButton}
@@ -192,31 +234,71 @@ export function DataTable<T>({
                 </div>
             )}
 
+            {/* Clear All Filters */}
+            {(enableColumnFilters && Object.keys(columnFilters).length > 0) && (
+                <div className="flex justify-end">
+                    <button
+                        onClick={() => setColumnFilters({})}
+                        className="px-3 py-1 text-sm text-red-600 hover:text-red-800"
+                    >
+                        Clear all column filters
+                    </button>
+                </div>
+            )}
+
             {/* Table */}
             <div className="rounded-lg border border-gray-200 overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         {table.getHeaderGroups().map(headerGroup => (
                             <tr key={headerGroup.id}>
-                                {headerGroup.headers.map(header => (
-                                    <th
-                                        key={header.id}
-                                        scope="col"
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:bg-gray-100"
-                                        onClick={header.column.getToggleSortingHandler()}
-                                    >
-                                        {header.column.getCanSort() ? (
-                                            <div className="flex items-center gap-2">
-                                                {flexRender(header.column.columnDef.header, header.getContext())}
-                                                <span>
-                                                    {header.column.getIsSorted() === 'asc' ? ' 🔼' : header.column.getIsSorted() === 'desc' ? ' 🔽' : ''}
-                                                </span>
+                                {headerGroup.headers.map(header => {
+                                    const columnId = header.column.id;
+                                    const filterConfig = columnFilterConfigs[columnId];
+                                    const filterValue = columnFilters[columnId];
+
+                                    return (
+                                        <th
+                                            key={header.id}
+                                            scope="col"
+                                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                        >
+                                            <div className="space-y-2">
+                                                {/* Column Header with Sorting */}
+                                                <div
+                                                    className={`flex items-center gap-2 ${header.column.getCanSort() ? 'cursor-pointer select-none hover:bg-gray-100 p-1 -m-1 rounded' : ''
+                                                        }`}
+                                                    onClick={header.column.getToggleSortingHandler()}
+                                                >
+                                                    <span>
+                                                        {typeof header.column.columnDef.header === 'string'
+                                                            ? header.column.columnDef.header
+                                                            : flexRender(header.column.columnDef.header, header.getContext())
+                                                        }
+                                                    </span>
+                                                    {header.column.getCanSort() && (
+                                                        <span>
+                                                            {header.column.getIsSorted() === 'asc' ? ' 🔼' : header.column.getIsSorted() === 'desc' ? ' 🔽' : ''}
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {/* Column Filter */}
+                                                {enableColumnFilters && filterConfig && (
+                                                    <ColumnFilter
+                                                        config={filterConfig}
+                                                        value={filterValue}
+                                                        onChange={(filter) => handleColumnFilterChange(columnId, filter)}
+                                                        header={typeof header.column.columnDef.header === 'string'
+                                                            ? header.column.columnDef.header
+                                                            : columnId
+                                                        }
+                                                    />
+                                                )}
                                             </div>
-                                        ) : (
-                                            flexRender(header.column.columnDef.header, header.getContext())
-                                        )}
-                                    </th>
-                                ))}
+                                        </th>
+                                    );
+                                })}
                             </tr>
                         ))}
                     </thead>
@@ -293,10 +375,5 @@ export function DataTable<T>({
     );
 }
 
-// Helper function to create typed column helper
-export function createDataTableColumnHelper<T>() {
-    return createColumnHelper<T>();
-}
-
-// Export props type for external use
-export type { DataTableProps };
+// Export types for external use
+export type { DataTableProps, ColumnFilterConfig, FilterValue };

@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { ColumnDef } from '@tanstack/react-table';
 import { PostWithAuthor } from '@blog/shared/src/models/Post';
-import { DataTable } from '../../components/ui/DataTable';
+import { DataTable, ColumnFilterConfig } from '../../components/ui/DataTable';
 import { DeletePostDialog } from '../../components/posts/DeletePostDialog';
 import { useSocketStore } from '../../lib/socket';
 import { LoadPageRequest, EntityDataResponse } from '@blog/shared/src/index';
@@ -32,6 +32,36 @@ export function PostsListPage() {
     });
 
     const userId = currentUser?.id || '';
+
+    // Configure column filters
+    const columnFilterConfigs: Record<string, ColumnFilterConfig> = {
+        title: {
+            type: 'text',
+            operators: ['contains', 'startsWith', 'endsWith', 'equals'],
+            placeholder: 'Filter by title...',
+        },
+        description: {
+            type: 'text',
+            operators: ['contains', 'startsWith', 'endsWith'],
+            placeholder: 'Filter by description...',
+        },
+        'author.displayName': {
+            type: 'lookup',
+            operators: ['in', 'notIn'],
+            lookupOptions: [
+                // This would typically be fetched from the server
+                // For now, we'll populate it with static data
+                { value: 'user1', label: 'John Doe' },
+                { value: 'user2', label: 'Jane Smith' },
+                { value: 'user3', label: 'Bob Johnson' },
+            ],
+            lookupSearchable: true,
+        },
+        createdAt: {
+            type: 'date',
+            operators: ['equals', 'before', 'after', 'between'],
+        },
+    };
 
     // Define columns for the posts table
     const columns: ColumnDef<PostWithAuthor>[] = [
@@ -125,6 +155,8 @@ export function PostsListPage() {
                 initialSorting={[{ id: 'createdAt', desc: true }]}
                 enableGlobalFilter={true}
                 globalFilterPlaceholder="Search posts by title, description, content, or author..."
+                enableColumnFilters={true}
+                columnFilterConfigs={columnFilterConfigs}
                 title="Posts"
                 createButton={
                     <Link

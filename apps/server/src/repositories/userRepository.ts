@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { User } from '@blog/shared/src/models/User';
 import { IUserRepository } from '../core/interfaces/userRepository';
 import { QueryOptions, PaginatedResult } from '@blog/shared/src/types/pagination';
+import { parseColumnFilters } from '../utils/filterParser';
 
 export class UserRepository implements IUserRepository {
   constructor(private prisma: PrismaClient) { }
@@ -12,40 +13,43 @@ export class UserRepository implements IUserRepository {
     const skip = page * limit;
 
     // Build where clause for filtering
-    const where: any = {};
+    let where: any = {};
+    let globalSearch: string | undefined;
+
     if (options?.filter) {
-      Object.keys(options.filter).forEach(key => {
-        if (options.filter![key] !== undefined && options.filter![key] !== null) {
-          // Handle global search filter
-          if (key === 'globalSearch') {
-            const searchTerm = options.filter![key] as string;
-            where.OR = [
-              {
-                displayName: {
-                  contains: searchTerm,
-                  mode: 'insensitive'
-                }
-              },
-              {
-                email: {
-                  contains: searchTerm,
-                  mode: 'insensitive'
-                }
-              }
-            ];
-          } else {
-            // Handle other filter types
-            if (typeof options.filter![key] === 'string') {
-              where[key] = {
-                contains: options.filter![key],
-                mode: 'insensitive'
-              };
-            } else {
-              where[key] = options.filter![key];
+      const parsedFilters = parseColumnFilters(options.filter);
+      where = parsedFilters.where;
+      globalSearch = parsedFilters.globalSearch;
+
+      // Handle global search filter (legacy support)
+      if (globalSearch) {
+        const globalConditions = [
+          {
+            displayName: {
+              contains: globalSearch,
+              mode: 'insensitive'
+            }
+          },
+          {
+            email: {
+              contains: globalSearch,
+              mode: 'insensitive'
             }
           }
+        ];
+
+        // If there are other filters, combine with AND
+        if (Object.keys(where).length > 0) {
+          where = {
+            AND: [
+              where,
+              { OR: globalConditions }
+            ]
+          };
+        } else {
+          where.OR = globalConditions;
         }
-      });
+      }
     }
 
     // Build orderBy clause for sorting

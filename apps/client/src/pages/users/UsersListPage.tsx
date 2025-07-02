@@ -1,9 +1,26 @@
 import { ColumnDef } from '@tanstack/react-table';
 import { Link } from '@tanstack/react-router';
 import { User } from '@blog/shared/src/models/User';
-import { DataTable } from '../../components/ui/DataTable';
+import { DataTable, ColumnFilterConfig } from '../../components/ui/DataTable';
 
 export function UsersListPage() {
+    // Configure column filters
+    const columnFilterConfigs: Record<string, ColumnFilterConfig> = {
+        displayName: {
+            type: 'text',
+            operators: ['contains', 'startsWith', 'endsWith', 'equals'],
+            placeholder: 'Filter by name...',
+        },
+        email: {
+            type: 'text',
+            operators: ['contains', 'startsWith', 'endsWith', 'equals'],
+            placeholder: 'Filter by email...',
+        },
+        createdAt: {
+            type: 'date',
+            operators: ['equals', 'before', 'after', 'between'],
+        },
+    };
     // Define columns for the users table
     const columns: ColumnDef<User>[] = [
         {
@@ -42,6 +59,8 @@ export function UsersListPage() {
             initialSorting={[{ id: 'createdAt', desc: true }]}
             enableGlobalFilter={true}
             globalFilterPlaceholder="Search users by name or email..."
+            enableColumnFilters={true}
+            columnFilterConfigs={columnFilterConfigs}
             title="Users"
             defaultPageSize={20}
             staleTime={1000 * 60} // 1 minute - users change less frequently
