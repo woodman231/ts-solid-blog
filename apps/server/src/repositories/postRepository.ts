@@ -33,7 +33,21 @@ export class PostRepository implements IPostRepository {
     const orderBy: any = {};
     if (options?.sort) {
       Object.keys(options.sort).forEach(key => {
-        orderBy[key] = options.sort![key];
+        // Handle nested sorting for author fields
+        if (key === 'author.displayName' || key === 'author_displayName') {
+          orderBy.author = {
+            displayName: options.sort![key]
+          };
+        } else if (key.startsWith('author.')) {
+          // Generic handler for other author fields
+          const authorField = key.replace('author.', '');
+          orderBy.author = {
+            [authorField]: options.sort![key]
+          };
+        } else {
+          // Direct field sorting
+          orderBy[key] = options.sort![key];
+        }
       });
     } else {
       orderBy.createdAt = 'desc'; // Default sort

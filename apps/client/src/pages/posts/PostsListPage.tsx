@@ -49,7 +49,13 @@ export function PostsListPage() {
 
     // Convert sorting state to server format
     const serverSort = sorting.reduce((acc, sort) => {
-        acc[sort.id] = sort.desc ? 'desc' : 'asc';
+        // Map client column IDs to server field names
+        let serverFieldName = sort.id;
+        if (sort.id === 'author.displayName') {
+            serverFieldName = 'author.displayName';
+        }
+
+        acc[serverFieldName] = sort.desc ? 'desc' : 'asc';
         return acc;
     }, {} as Record<string, 'asc' | 'desc'>);
 
@@ -103,6 +109,7 @@ export function PostsListPage() {
             ),
         }),
         columnHelper.accessor('author.displayName', {
+            id: 'author.displayName', // Explicitly set the ID
             header: 'Author',
             cell: info => {
                 const authorId = info.row.original.author.id;
