@@ -48,3 +48,15 @@ export interface SuccessResponseParams extends BaseResponseParams {
 export interface SuccessResponse extends BaseResponse<SuccessResponseParams> {
   responseType: 'success';
 }
+
+// Search authors response
+export interface SearchAuthorsResponseParams extends BaseResponseParams {
+  authors: Array<{
+    id: string;
+    displayName: string;
+  }>;
+}
+
+export interface SearchAuthorsResponse extends BaseResponse<SearchAuthorsResponseParams> {
+  responseType: 'searchAuthors';
+}

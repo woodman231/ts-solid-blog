@@ -63,6 +63,16 @@ export interface DeleteEntityRequest extends BaseRequest<DeleteEntityRequestPara
   requestType: 'deleteEntity';
 }
 
+// Search authors
+export interface SearchAuthorsRequestParams extends BaseRequestParams {
+  query?: string;
+  limit?: number;
+}
+
+export interface SearchAuthorsRequest extends BaseRequest<SearchAuthorsRequestParams> {
+  requestType: 'searchAuthors';
+}
+
 // Type guards
 export function isLoadPageRequest(req: BaseRequest): req is LoadPageRequest {
   return req.requestType === 'loadPage';
@@ -82,4 +92,8 @@ export function isUpdateEntityRequest(req: BaseRequest): req is UpdateEntityRequ
 
 export function isDeleteEntityRequest(req: BaseRequest): req is DeleteEntityRequest {
   return req.requestType === 'deleteEntity';
+}
+
+export function isSearchAuthorsRequest(req: BaseRequest): req is SearchAuthorsRequest {
+  return req.requestType === 'searchAuthors';
 }

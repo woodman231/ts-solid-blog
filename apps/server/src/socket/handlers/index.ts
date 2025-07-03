@@ -7,13 +7,15 @@ import {
   isFetchEntitiesRequest,
   isCreateEntityRequest,
   isUpdateEntityRequest,
-  isDeleteEntityRequest
+  isDeleteEntityRequest,
+  isSearchAuthorsRequest
 } from '@blog/shared';
 import { handleLoadPage } from './loadPageHandler';
 import { handleFetchEntities } from './fetchEntitiesHandler';
 import { handleCreateEntity } from './createEntityHandler';
 import { handleUpdateEntity } from './updateEntityHandler';
 import { handleDeleteEntity } from './deleteEntityHandler';
+import { handleSearchAuthors } from './searchAuthorsHandler';
 import { logger } from '../../utils/logger';
 
 interface Services {
@@ -60,6 +62,9 @@ export function setupEventHandlers(socket: Socket, services: Services): void {
       }
       else if (isDeleteEntityRequest(request)) {
         await handleDeleteEntity(socket, request, callback, services);
+      }
+      else if (isSearchAuthorsRequest(request)) {
+        await handleSearchAuthors(socket, request, callback, { userService: services.userService });
       }
       else {
         logger.warn(`Unsupported request type: ${request.requestType}`, {

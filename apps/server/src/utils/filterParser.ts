@@ -83,6 +83,7 @@ function mapColumnToField(columnId: string): string | null {
         'updatedAt': 'updatedAt',
         'author.displayName': 'author.displayName',
         'author.email': 'author.email',
+        'authorId': 'authorId', // For filtering by author IDs
         'displayName': 'displayName',
         'email': 'email',
     };

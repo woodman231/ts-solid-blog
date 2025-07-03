@@ -13,8 +13,15 @@ export type LookupFilterOperator = 'in' | 'notIn';
 export interface ColumnFilterConfig {
     type: FilterType;
     operators?: TextFilterOperator[] | NumberFilterOperator[] | DateFilterOperator[] | LookupFilterOperator[];
-    lookupOptions?: Array<{ value: string; label: string }>; // For lookup columns
+    lookupOptions?: Array<{ value: string; label: string }>; // For static lookup columns
     lookupSearchable?: boolean; // Whether lookup supports search
+    useDynamicLookup?: boolean; // Whether to use dynamic lookup instead of static options
+    dynamicLookupHook?: () => {
+        authors: Array<{ id: string; displayName: string }>;
+        searchAuthors: (query: string) => void;
+        isLoading: boolean;
+        error: any;
+    }; // Hook function for dynamic lookup
     placeholder?: string;
 }
 
@@ -282,26 +289,34 @@ function renderValueInput(
                         <label className="block text-xs font-medium text-gray-700 mb-1">
                             Select Options
                         </label>
-                        <div className="max-h-32 overflow-y-auto border border-gray-300 rounded">
-                            {config.lookupOptions?.map((option) => (
-                                <label key={option.value} className="flex items-center px-2 py-1 hover:bg-gray-50">
-                                    <input
-                                        type="checkbox"
-                                        checked={Array.isArray(value) && value.includes(option.value)}
-                                        onChange={(e) => {
-                                            const currentValues = Array.isArray(value) ? value : [];
-                                            if (e.target.checked) {
-                                                setValue([...currentValues, option.value]);
-                                            } else {
-                                                setValue(currentValues.filter((v: any) => v !== option.value));
-                                            }
-                                        }}
-                                        className="mr-2"
-                                    />
-                                    <span className="text-sm">{option.label}</span>
-                                </label>
-                            ))}
-                        </div>
+                        {config.useDynamicLookup && config.dynamicLookupHook ? (
+                            <DynamicLookupSelector
+                                value={value}
+                                setValue={setValue}
+                                dynamicLookupHook={config.dynamicLookupHook}
+                            />
+                        ) : (
+                            <div className="max-h-32 overflow-y-auto border border-gray-300 rounded">
+                                {config.lookupOptions?.map((option) => (
+                                    <label key={option.value} className="flex items-center px-2 py-1 hover:bg-gray-50">
+                                        <input
+                                            type="checkbox"
+                                            checked={Array.isArray(value) && value.includes(option.value)}
+                                            onChange={(e) => {
+                                                const currentValues = Array.isArray(value) ? value : [];
+                                                if (e.target.checked) {
+                                                    setValue([...currentValues, option.value]);
+                                                } else {
+                                                    setValue(currentValues.filter((v: any) => v !== option.value));
+                                                }
+                                            }}
+                                            className="mr-2"
+                                        />
+                                        <span className="text-sm">{option.label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 );
             }
@@ -382,4 +397,66 @@ function getOperatorLabel(operator: string): string {
         notIn: 'Not in list',
     };
     return labels[operator] || operator;
+}
+
+// Dynamic lookup selector component
+interface DynamicLookupSelectorProps {
+    value: any;
+    setValue: (value: any) => void;
+    dynamicLookupHook: () => {
+        authors: Array<{ id: string; displayName: string }>;
+        searchAuthors: (query: string) => void;
+        isLoading: boolean;
+        error: any;
+    };
+}
+
+function DynamicLookupSelector({ value, setValue, dynamicLookupHook }: DynamicLookupSelectorProps) {
+    const [searchQuery, setSearchQuery] = useState('');
+    const { authors, searchAuthors, isLoading } = dynamicLookupHook();
+
+    useEffect(() => {
+        searchAuthors(searchQuery);
+    }, [searchQuery, searchAuthors]);
+
+    return (
+        <div>
+            {/* Search input */}
+            <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search authors..."
+                className="w-full px-2 py-1 text-sm border border-gray-300 rounded mb-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            />
+
+            {/* Options list */}
+            <div className="max-h-32 overflow-y-auto border border-gray-300 rounded">
+                {isLoading && (
+                    <div className="px-2 py-2 text-sm text-gray-500">Loading...</div>
+                )}
+                {!isLoading && authors.length === 0 && (
+                    <div className="px-2 py-2 text-sm text-gray-500">No authors found</div>
+                )}
+                {!isLoading && authors.map((author) => (
+                    <label key={author.id} className="flex items-center px-2 py-1 hover:bg-gray-50">
+                        <input
+                            type="checkbox"
+                            checked={Array.isArray(value) && value.includes(author.id)}
+                            onChange={(e) => {
+                                const currentValues = Array.isArray(value) ? value : [];
+                                if (e.target.checked) {
+                                    setValue([...currentValues, author.id]);
+                                } else {
+                                    setValue(currentValues.filter((v: any) => v !== author.id));
+                                }
+                            }}
+                            className="mr-2"
+                        />
+                        <span className="text-sm">{author.displayName}</span>
+                    </label>
+                ))}
+            </div>
+        </div>
+    );
 }

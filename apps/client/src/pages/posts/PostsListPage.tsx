@@ -8,7 +8,7 @@ import { DeletePostDialog } from '../../components/posts/DeletePostDialog';
 import { useSocketStore } from '../../lib/socket';
 import { LoadPageRequest, EntityDataResponse } from '@blog/shared/src/index';
 import { useAuth } from '../../auth/useAuth';
-
+import { useAuthorSearch } from '../../hooks/useAuthorSearch';
 export function PostsListPage() {
     const { sendRequest } = useSocketStore();
     const { user: account } = useAuth();
@@ -45,16 +45,11 @@ export function PostsListPage() {
             operators: ['contains', 'startsWith', 'endsWith'],
             placeholder: 'Filter by description...',
         },
-        'author.displayName': {
+        'authorId': {
             type: 'lookup',
             operators: ['in', 'notIn'],
-            lookupOptions: [
-                // This would typically be fetched from the server
-                // For now, we'll populate it with static data
-                { value: 'user1', label: 'John Doe' },
-                { value: 'user2', label: 'Jane Smith' },
-                { value: 'user3', label: 'New OPSystemUser001' },
-            ],
+            useDynamicLookup: true,
+            dynamicLookupHook: useAuthorSearch,
             lookupSearchable: true,
         },
         createdAt: {
@@ -88,7 +83,7 @@ export function PostsListPage() {
             ),
         },
         {
-            id: 'author.displayName', // Explicitly set the ID for server-side sorting
+            id: 'authorId', // Use authorId for filtering
             accessorFn: (row) => row.author.displayName,
             header: 'Author',
             cell: ({ row }) => {
