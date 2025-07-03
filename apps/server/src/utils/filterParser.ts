@@ -24,20 +24,53 @@ export function parseColumnFilters(filters: Record<string, any>): { where: any; 
         const fieldPath = mapColumnToField(columnId);
         if (!fieldPath) return;
 
-        // Build the where condition based on operator
-        const condition = buildWhereCondition(fieldPath, operator, value, isSecondValue);
-        if (condition) {
-            // Merge conditions for the same field (e.g., between operations)
-            const existingCondition = getNestedValue(where, fieldPath);
-            if (existingCondition && typeof existingCondition === 'object') {
-                setNestedValue(where, fieldPath, { ...existingCondition, ...condition });
-            } else {
-                setNestedValue(where, fieldPath, condition);
+        try {
+            // Build the where condition based on operator
+            const condition = buildWhereCondition(fieldPath, operator, value, isSecondValue);
+            if (condition) {
+                // Merge conditions for the same field (e.g., between operations)
+                const existingCondition = getNestedValue(where, fieldPath);
+                if (existingCondition && typeof existingCondition === 'object') {
+                    setNestedValue(where, fieldPath, { ...existingCondition, ...condition });
+                } else {
+                    setNestedValue(where, fieldPath, condition);
+                }
             }
+        } catch (error: any) {
+            // Log the error but don't fail the entire query
+            console.warn(`Invalid filter value for ${columnId} with operator ${operator}:`, error.message);
+            // Skip this filter and continue with others
         }
     });
 
     return { where, globalSearch };
+}
+
+function parseDate(value: any, isEndOfDay: boolean = false): Date {
+    if (value instanceof Date) {
+        return value;
+    }
+
+    if (typeof value === 'string') {
+        // Handle date string - if it's just YYYY-MM-DD, convert to full ISO string
+        if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+            if (isEndOfDay) {
+                // For end of day, use 23:59:59.999
+                return new Date(`${value}T23:59:59.999Z`);
+            } else {
+                // For start of day, use midnight
+                return new Date(`${value}T00:00:00.000Z`);
+            }
+        }
+
+        const date = new Date(value);
+        if (isNaN(date.getTime())) {
+            throw new Error(`Invalid date format: ${value}`);
+        }
+        return date;
+    }
+
+    throw new Error(`Cannot parse date from value: ${value}`);
 }
 
 function mapColumnToField(columnId: string): string | null {
@@ -69,24 +102,70 @@ function buildWhereCondition(fieldPath: string, operator: string, value: any, is
             return { endsWith: value, mode: 'insensitive' };
 
         case 'equals':
+            // Handle date fields specially - for dates, "equals" means the entire day
+            if (fieldPath === 'createdAt' || fieldPath === 'updatedAt') {
+                const startOfDay = parseDate(value, false);
+                const endOfDay = parseDate(value, true);
+                return {
+                    gte: startOfDay,
+                    lte: endOfDay
+                };
+            }
             return { equals: value };
 
         case 'notEquals':
+            if (fieldPath === 'createdAt' || fieldPath === 'updatedAt') {
+                const startOfDay = parseDate(value, false);
+                const endOfDay = parseDate(value, true);
+                return {
+                    NOT: {
+                        AND: [
+                            { gte: startOfDay },
+                            { lte: endOfDay }
+                        ]
+                    }
+                };
+            }
             return { not: value };
 
         case 'gt':
+            if (fieldPath === 'createdAt' || fieldPath === 'updatedAt') {
+                // Greater than date means after the end of that day
+                return { gt: parseDate(value, true) };
+            }
             return { gt: value };
 
         case 'lt':
+            if (fieldPath === 'createdAt' || fieldPath === 'updatedAt') {
+                // Less than date means before the start of that day
+                return { lt: parseDate(value, false) };
+            }
             return { lt: value };
 
         case 'gte':
+            if (fieldPath === 'createdAt' || fieldPath === 'updatedAt') {
+                // Greater than or equal to date means from start of that day
+                return { gte: parseDate(value, false) };
+            }
             return { gte: value };
 
         case 'lte':
+            if (fieldPath === 'createdAt' || fieldPath === 'updatedAt') {
+                // Less than or equal to date means until end of that day
+                return { lte: parseDate(value, true) };
+            }
             return { lte: value };
 
         case 'between':
+            if (fieldPath === 'createdAt' || fieldPath === 'updatedAt') {
+                if (isSecondValue) {
+                    // End date - use end of day
+                    return { lte: parseDate(value, true) };
+                } else {
+                    // Start date - use start of day
+                    return { gte: parseDate(value, false) };
+                }
+            }
             if (isSecondValue) {
                 return { lte: value }; // This will be merged with gte from first value
             } else {
@@ -94,10 +173,12 @@ function buildWhereCondition(fieldPath: string, operator: string, value: any, is
             }
 
         case 'before':
-            return { lt: new Date(value) };
+            // Before date means before the start of that day
+            return { lt: parseDate(value, false) };
 
         case 'after':
-            return { gt: new Date(value) };
+            // After date means after the end of that day
+            return { gt: parseDate(value, true) };
 
         case 'in':
             return { in: Array.isArray(value) ? value : [value] };

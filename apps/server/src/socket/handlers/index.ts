@@ -25,7 +25,25 @@ export function setupEventHandlers(socket: Socket, services: Services): void {
   // Main request handler
   socket.on('request', async (request: BaseRequest, callback) => {
     try {
-      logger.info(`Received request: ${request.requestType}`, { requestParams: request.requestParams });
+      logger.info(`Received request: ${request.requestType}`, {
+        requestParams: request.requestParams,
+        userId: socket.data.userId
+      });
+
+      // Validate request structure
+      if (!request || !request.requestType || !request.requestParams) {
+        logger.warn('Invalid request structure received', { request });
+        callback({
+          responseType: 'error',
+          responseParams: {
+            error: {
+              code: 'INVALID_REQUEST',
+              message: 'Invalid request format'
+            }
+          }
+        });
+        return;
+      }
 
       // Route request to appropriate handler based on request type
       if (isLoadPageRequest(request)) {
@@ -44,25 +62,34 @@ export function setupEventHandlers(socket: Socket, services: Services): void {
         await handleDeleteEntity(socket, request, callback, services);
       }
       else {
+        logger.warn(`Unsupported request type: ${request.requestType}`, {
+          requestParams: request.requestParams,
+          userId: socket.data.userId
+        });
         callback({
           responseType: 'error',
           responseParams: {
             error: {
               code: 'INVALID_REQUEST_TYPE',
-              message: `Unsupported request type: ${request.requestType}`
+              message: `The requested operation is not supported.`
             }
           }
         });
       }
     } catch (error: any) {
-      logger.error(`Error handling request: ${request.requestType}`, error);
+      logger.error(`Error handling request: ${request?.requestType || 'unknown'}`, {
+        error: error.message,
+        stack: error.stack,
+        requestParams: request?.requestParams,
+        userId: socket.data.userId
+      });
 
       callback({
         responseType: 'error',
         responseParams: {
           error: {
             code: 'SERVER_ERROR',
-            message: error.message || 'An unexpected error occurred'
+            message: 'An unexpected error occurred. Please try again.'
           }
         }
       });

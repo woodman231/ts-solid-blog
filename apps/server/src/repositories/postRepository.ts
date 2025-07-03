@@ -8,109 +8,127 @@ export class PostRepository implements IPostRepository {
   constructor(private prisma: PrismaClient) { }
 
   async findAll(options?: QueryOptions): Promise<PaginatedResult<Post>> {
-    const page = options?.pagination?.page ?? 0;
-    const limit = options?.pagination?.limit ?? 10;
-    const skip = page * limit;
+    try {
+      const page = options?.pagination?.page ?? 0;
+      const limit = options?.pagination?.limit ?? 10;
+      const skip = page * limit;
 
-    // Build where clause for filtering
-    let where: any = {};
-    let globalSearch: string | undefined;
+      // Build where clause for filtering
+      let where: any = {};
+      let globalSearch: string | undefined;
 
-    if (options?.filter) {
-      const parsedFilters = parseColumnFilters(options.filter);
-      where = parsedFilters.where;
-      globalSearch = parsedFilters.globalSearch;
+      if (options?.filter) {
+        const parsedFilters = parseColumnFilters(options.filter);
+        where = parsedFilters.where;
+        globalSearch = parsedFilters.globalSearch;
 
-      // Handle global search filter (legacy support)
-      if (globalSearch) {
-        const globalConditions = [
-          {
-            title: {
-              contains: globalSearch,
-              mode: 'insensitive'
-            }
-          },
-          {
-            description: {
-              contains: globalSearch,
-              mode: 'insensitive'
-            }
-          },
-          {
-            body: {
-              contains: globalSearch,
-              mode: 'insensitive'
-            }
-          },
-          {
-            author: {
-              displayName: {
+        // Handle global search filter (legacy support)
+        if (globalSearch) {
+          const globalConditions = [
+            {
+              title: {
                 contains: globalSearch,
                 mode: 'insensitive'
               }
+            },
+            {
+              description: {
+                contains: globalSearch,
+                mode: 'insensitive'
+              }
+            },
+            {
+              body: {
+                contains: globalSearch,
+                mode: 'insensitive'
+              }
+            },
+            {
+              author: {
+                displayName: {
+                  contains: globalSearch,
+                  mode: 'insensitive'
+                }
+              }
             }
-          }
-        ];
+          ];
 
-        // If there are other filters, combine with AND
-        if (Object.keys(where).length > 0) {
-          where = {
-            AND: [
-              where,
-              { OR: globalConditions }
-            ]
-          };
-        } else {
-          where.OR = globalConditions;
+          // If there are other filters, combine with AND
+          if (Object.keys(where).length > 0) {
+            where = {
+              AND: [
+                where,
+                { OR: globalConditions }
+              ]
+            };
+          } else {
+            where.OR = globalConditions;
+          }
         }
       }
-    }
 
-    // Build orderBy clause for sorting
-    const orderBy: any = {};
-    if (options?.sort) {
-      Object.keys(options.sort).forEach(key => {
-        // Handle nested sorting for author fields
-        if (key === 'author.displayName' || key === 'author_displayName') {
-          orderBy.author = {
-            displayName: options.sort![key]
-          };
-        } else if (key.startsWith('author.')) {
-          // Generic handler for other author fields
-          const authorField = key.replace('author.', '');
-          orderBy.author = {
-            [authorField]: options.sort![key]
-          };
-        } else {
-          // Direct field sorting
-          orderBy[key] = options.sort![key];
-        }
+      // Build orderBy clause for sorting
+      const orderBy: any = {};
+      if (options?.sort) {
+        Object.keys(options.sort).forEach(key => {
+          // Handle nested sorting for author fields
+          if (key === 'author.displayName' || key === 'author_displayName') {
+            orderBy.author = {
+              displayName: options.sort![key]
+            };
+          } else if (key.startsWith('author.')) {
+            // Generic handler for other author fields
+            const authorField = key.replace('author.', '');
+            orderBy.author = {
+              [authorField]: options.sort![key]
+            };
+          } else {
+            // Direct field sorting
+            orderBy[key] = options.sort![key];
+          }
+        });
+      } else {
+        orderBy.createdAt = 'desc'; // Default sort
+      }
+
+      // Execute queries in parallel
+      const [posts, total, filteredTotal] = await Promise.all([
+        this.prisma.post.findMany({
+          where,
+          orderBy,
+          skip,
+          take: limit,
+          include: { author: true }
+        }),
+        this.prisma.post.count(), // Total count without filters
+        this.prisma.post.count({ where }), // Total count with filters
+      ]);
+
+      return {
+        data: posts.map(this.mapToPost),
+        total,
+        filteredTotal,
+        page,
+        limit,
+        totalPages: Math.ceil(filteredTotal / limit),
+      };
+    } catch (error: any) {
+      // Log the detailed error for debugging
+      console.error('Error in PostRepository.findAll:', {
+        error: error.message,
+        stack: error.stack,
+        options
       });
-    } else {
-      orderBy.createdAt = 'desc'; // Default sort
+
+      // Re-throw with more context for the service layer
+      if (error.code === 'P2025') {
+        throw new Error('Post data not found');
+      } else if (error.message?.includes('Invalid')) {
+        throw new Error(`Invalid filter or search criteria: ${error.message}`);
+      } else {
+        throw new Error('Database error occurred while fetching posts');
+      }
     }
-
-    // Execute queries in parallel
-    const [posts, total, filteredTotal] = await Promise.all([
-      this.prisma.post.findMany({
-        where,
-        orderBy,
-        skip,
-        take: limit,
-        include: { author: true }
-      }),
-      this.prisma.post.count(), // Total count without filters
-      this.prisma.post.count({ where }), // Total count with filters
-    ]);
-
-    return {
-      data: posts.map(this.mapToPost),
-      total,
-      filteredTotal,
-      page,
-      limit,
-      totalPages: Math.ceil(filteredTotal / limit),
-    };
   }
 
   async findById(id: string): Promise<Post | null> {
