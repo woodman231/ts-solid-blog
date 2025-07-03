@@ -53,7 +53,7 @@ export function PostsListPage() {
                 // For now, we'll populate it with static data
                 { value: 'user1', label: 'John Doe' },
                 { value: 'user2', label: 'Jane Smith' },
-                { value: 'user3', label: 'Bob Johnson' },
+                { value: 'user3', label: 'New OPSystemUser001' },
             ],
             lookupSearchable: true,
         },

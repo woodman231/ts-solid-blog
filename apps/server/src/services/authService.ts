@@ -79,13 +79,16 @@ export class AuthService implements IAuthService {
       }
 
       // Find user by identity ID
-      const user = await this.userRepository.findByIdentityId(identityId);
+      let user = await this.userRepository.findByIdentityId(identityId);
 
       if (!user) {
-        return {
-          valid: false,
-          message: 'Valid token, but user not found - please call login endpoint first'
-        };
+        user = await this.upsertUser(cleanToken);
+        if (!user) {
+          return {
+            valid: false,
+            message: 'Failed to create or update user from token'
+          };
+        }
       }
 
       return { valid: true, userId: user.id };
