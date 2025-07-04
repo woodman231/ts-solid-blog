@@ -4,11 +4,9 @@ import { Post, PostWithAuthor } from '@blog/shared/src/models/Post';
 import { QueryOptions, PaginatedResult } from '@blog/shared/src/types/pagination';
 import { BaseService, ServiceConfig } from '../core/BaseService';
 
-export class PostService extends BaseService<Post> implements IPostService {
-  private postRepository: IPostRepository;
-
+export class PostService extends BaseService<Post, IPostRepository> implements IPostService {
   constructor(postRepository: IPostRepository) {
-    const config: ServiceConfig<Post> = {
+    const config: ServiceConfig<Post, IPostRepository> = {
       repository: postRepository,
       checkAuthorization: async (postId: string, userId: string): Promise<boolean> => {
         const post = await postRepository.findById(postId);
@@ -16,7 +14,6 @@ export class PostService extends BaseService<Post> implements IPostService {
       },
     };
     super(config);
-    this.postRepository = postRepository;
   }
 
   getAllPosts(options?: QueryOptions): Promise<PaginatedResult<PostWithAuthor>> {
@@ -28,25 +25,25 @@ export class PostService extends BaseService<Post> implements IPostService {
   }
 
   getPostsByAuthorId(authorId: string): Promise<Post[]> {
-    return this.postRepository.findByAuthorId(authorId);
+    return this.repository.findByAuthorId(authorId);
   }
 
   createPost(authorId: string, postData: Omit<Post, 'id' | 'authorId' | 'createdAt' | 'updatedAt'>): Promise<Post> {
-    return this.postRepository.create({
+    return this.repository.create({
       ...postData,
       authorId
     });
   }
 
   updatePost(id: string, authorId: string, postData: Partial<Post>): Promise<Post> {
-    return this.postRepository.update(id, postData);
+    return this.update(id, postData);
   }
 
   deletePost(id: string, authorId: string): Promise<boolean> {
-    return this.postRepository.delete(id);
+    return this.delete(id);
   }
 
   isAuthorized(postId: string, userId: string): Promise<boolean> {
-    return this.postRepository.findById(postId).then(post => post !== null && post.authorId === userId);
+    return this.repository.findById(postId).then(post => post !== null && post.authorId === userId);
   }
 }
