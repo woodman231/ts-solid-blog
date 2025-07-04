@@ -20,6 +20,7 @@ export class UserRepository extends BaseRepository<User, UserPayload, PrismaClie
   constructor(prisma: PrismaClient) {
     const config: RepositoryConfig<User, UserPayload, PrismaClient['user']> = {
       delegate: prisma.user,
+      selector: userSelector,
       mapToShared: (user: UserPayload): User => ({
         id: user.id,
         displayName: user.displayName,

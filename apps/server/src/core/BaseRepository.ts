@@ -22,6 +22,9 @@ export interface RepositoryConfig<TShared, TPrisma, TDelegate extends PrismaMode
     /** The Prisma model delegate (e.g., prisma.user, prisma.post) */
     delegate: TDelegate;
 
+    /** Optional Prisma selector for type-safe queries */
+    selector?: any;
+
     /** Function to map Prisma entity to shared model */
     mapToShared: (prismaEntity: TPrisma) => TShared;
 
@@ -44,9 +47,6 @@ export interface RepositoryConfig<TShared, TPrisma, TDelegate extends PrismaMode
 
     /** Default sorting configuration */
     defaultSort?: Record<string, 'asc' | 'desc'>;
-
-    /** Prisma include configuration for relations */
-    include?: any;
 
     /** Custom column to field mapping for filtering */
     columnFieldMapping?: Record<string, string>;
@@ -85,11 +85,11 @@ export abstract class BaseRepository<TShared, TPrisma, TDelegate extends PrismaM
             // Execute queries in parallel
             const [entities, total, filteredTotal] = await Promise.all([
                 this.config.delegate.findMany({
+                    select: this.config.selector,
                     where,
                     orderBy,
                     skip,
                     take: limit,
-                    include: this.config.include
                 }),
                 this.config.delegate.count(), // Total count without filters
                 this.config.delegate.count({ where }), // Total count with filters
@@ -112,8 +112,8 @@ export abstract class BaseRepository<TShared, TPrisma, TDelegate extends PrismaM
     async findById(id: string): Promise<TShared | null> {
         try {
             const entity = await this.config.delegate.findUnique({
-                where: { id },
-                include: this.config.include
+                select: this.config.selector,
+                where: { id }
             });
             return entity ? this.config.mapToShared(entity) : null;
         } catch (error: any) {
@@ -130,7 +130,7 @@ export abstract class BaseRepository<TShared, TPrisma, TDelegate extends PrismaM
 
             const entity = await this.config.delegate.create({
                 data: createInput,
-                include: this.config.include
+                select: this.config.selector
             });
 
             return this.config.mapToShared(entity);
@@ -149,7 +149,6 @@ export abstract class BaseRepository<TShared, TPrisma, TDelegate extends PrismaM
             const entity = await this.config.delegate.update({
                 where: { id },
                 data: updateInput,
-                include: this.config.include
             });
 
             return this.config.mapToShared(entity);

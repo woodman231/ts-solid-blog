@@ -30,6 +30,7 @@ export class PostRepository extends BaseRepository<PostWithAuthor, PostWithAutho
   constructor(prisma: PrismaClient) {
     const config: RepositoryConfig<PostWithAuthor, PostWithAuthorPayload, PrismaClient['post']> = {
       delegate: prisma.post,
+      selector: postWithAuthorSelector,
       mapToShared: (post: PostWithAuthorPayload): PostWithAuthor => ({
         id: post.id,
         title: post.title,
@@ -67,7 +68,6 @@ export class PostRepository extends BaseRepository<PostWithAuthor, PostWithAutho
         ]
       },
       defaultSort: { createdAt: 'desc' },
-      include: { author: true }
     };
 
     super(prisma, config);
@@ -77,8 +77,8 @@ export class PostRepository extends BaseRepository<PostWithAuthor, PostWithAutho
   async findByAuthorId(authorId: string): Promise<Post[]> {
     try {
       const posts = await this.config.delegate.findMany({
+        select: this.config.selector,
         where: { authorId },
-        include: this.config.include
       });
       return posts.map((post: any) => this.config.mapToShared(post));
     } catch (error: any) {
@@ -99,7 +99,7 @@ export class PostRepository extends BaseRepository<PostWithAuthor, PostWithAutho
       const [posts, total] = await Promise.all([
         this.config.delegate.findMany({
           where: { authorId },
-          include: this.config.include,
+          select: this.config.selector,
           skip,
           take: limit,
           orderBy: { createdAt: 'desc' }
@@ -126,7 +126,7 @@ export class PostRepository extends BaseRepository<PostWithAuthor, PostWithAutho
 
       const posts = await this.config.delegate.findMany({
         where: whereCondition,
-        include: this.config.include,
+        select: this.config.selector,
         orderBy: { createdAt: 'desc' }
       });
 
@@ -141,7 +141,7 @@ export class PostRepository extends BaseRepository<PostWithAuthor, PostWithAutho
   async findRecent(limit: number = 10): Promise<Post[]> {
     try {
       const posts = await this.config.delegate.findMany({
-        include: this.config.include,
+        select: this.config.selector,
         orderBy: { createdAt: 'desc' },
         take: limit
       });
