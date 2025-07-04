@@ -27,11 +27,10 @@ export async function handleCreateEntity(
                     throw new Error('Post title is required');
                 }
 
-                // Create the post using the current user as author
-                const newPost = await services.postService.createPost(
-                    userId,
-                    postData
-                );
+                const newPost = await services.postService.create({
+                    ...postData,
+                    authorId: userId
+                });
 
                 callback({
                     responseType: 'success',

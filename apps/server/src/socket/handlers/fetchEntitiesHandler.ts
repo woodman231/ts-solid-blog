@@ -59,11 +59,11 @@ export async function handleFetchEntities(
 
     switch (entityType) {
       case 'users':
-        result = await services.userService.getAllUsers(queryOptions);
+        result = await services.userService.getAll(queryOptions);
         break;
 
       case 'posts':
-        result = await services.postService.getAllPosts(queryOptions);
+        result = await services.postService.getAll(queryOptions);
         break;
 
       default:

@@ -39,10 +39,18 @@ export interface RepositoryConfig<TShared, TPrisma> {
     columnFieldMapping?: Record<string, string>;
 }
 
+export interface IBaseRepository<TShared, TPrisma> {
+    findAll(options?: QueryOptions): Promise<PaginatedResult<TShared>>;
+    findById(id: string): Promise<TShared | null>;
+    create(data: Omit<TShared, 'id' | 'createdAt' | 'updatedAt'>): Promise<TShared>;
+    update(id: string, data: Partial<TShared>): Promise<TShared>;
+    delete(id: string): Promise<boolean>;
+}
+
 /**
  * Abstract base repository that provides common CRUD operations
  */
-export abstract class BaseRepository<TShared, TPrisma> {
+export abstract class BaseRepository<TShared, TPrisma> implements IBaseRepository<TShared, TPrisma> {
     protected config: RepositoryConfig<TShared, TPrisma>;
 
     constructor(

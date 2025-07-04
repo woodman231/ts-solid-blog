@@ -20,21 +20,8 @@ export async function handleUpdateEntity(
     try {
         switch (entityType) {
             case 'posts':
-                // Check if user is authorized to update this post
-                const isAuthorized = await services.postService.isAuthorized(entityId, userId);
-
-                if (!isAuthorized) {
-                    throw new Error('You are not authorized to update this post');
-                }
-
                 const postData = entityData as Partial<Post>;
-
-                // Update the post
-                const updatedPost = await services.postService.updatePost(
-                    entityId,
-                    userId,
-                    postData
-                );
+                const updatedPost = await services.postService.update(entityId, postData);
 
                 callback({
                     responseType: 'success',

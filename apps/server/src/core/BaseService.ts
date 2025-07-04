@@ -1,4 +1,5 @@
 import { QueryOptions, PaginatedResult } from '@blog/shared/src/types/pagination';
+import { IBaseRepository } from './BaseRepository';
 
 /**
  * Base service interface that all services should implement
@@ -16,7 +17,7 @@ export interface IBaseService<T> {
  */
 export interface ServiceConfig<T> {
     /** The repository instance to use for data operations */
-    repository: any;
+    repository: IBaseRepository<T, any>;
 
     /** Optional validation function for create operations */
     validateCreate?: (data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void> | void;

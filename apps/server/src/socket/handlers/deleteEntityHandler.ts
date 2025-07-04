@@ -26,8 +26,8 @@ export async function handleDeleteEntity(
                     throw new Error('You are not authorized to delete this post');
                 }
 
-                // Delete the post
-                const deleted = await services.postService.deletePost(entityId, userId);
+                // Delete the post                
+                const deleted = await services.postService.delete(entityId);
 
                 if (deleted) {
                     callback({

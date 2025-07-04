@@ -1,7 +1,8 @@
 import { Post, PostWithAuthor } from '@blog/shared/src/models/Post';
 import { QueryOptions, PaginatedResult } from '@blog/shared/src/types/pagination';
+import { IBaseService } from '../BaseService';
 
-export interface IPostService {
+export interface IPostService extends IBaseService<Post> {
   getAllPosts(options?: QueryOptions): Promise<PaginatedResult<PostWithAuthor>>;
   getPostById(id: string): Promise<PostWithAuthor | null>;
   getPostsByAuthorId(authorId: string): Promise<Post[]>;

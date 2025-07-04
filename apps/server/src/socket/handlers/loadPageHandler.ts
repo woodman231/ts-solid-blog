@@ -25,7 +25,7 @@ export async function handleLoadPage(
 
     switch (pageName) {
         case 'usersList':
-            const usersResult = await services.userService.getAllUsers(queryOptions);
+            const usersResult = await services.userService.getAll(queryOptions);
 
             callback({
                 responseType: 'setEntityData',
@@ -50,8 +50,10 @@ export async function handleLoadPage(
                 throw new Error('User ID is required for user details page');
             }
 
-            const user = await services.userService.getUserById(userIdParam);
-            const userPosts = await services.postService.getPostsByAuthorId(userIdParam);
+            const [user, userPosts] = await Promise.all([
+                services.userService.getUserById(userIdParam),
+                services.postService.getPostsByAuthorId(userIdParam)
+            ]);
 
             callback({
                 responseType: 'setEntityData',
@@ -96,7 +98,7 @@ export async function handleLoadPage(
                 throw new Error('User must be authenticated to get current user info');
             }
 
-            const currentUser = await services.userService.getUserById(userId);
+            const currentUser = await services.userService.getById(userId);
 
             callback({
                 responseType: 'setEntityData',
@@ -121,12 +123,12 @@ export async function handleLoadPage(
                 throw new Error('Post ID is required for post details page');
             }
 
-            const post = await services.postService.getPostById(postIdParam);
+            const post = await services.postService.getById(postIdParam);
 
             // Also fetch the author information
             let author = null;
             if (post) {
-                author = await services.userService.getUserById(post.authorId);
+                author = await services.userService.getById(post.authorId);
             }
 
             callback({

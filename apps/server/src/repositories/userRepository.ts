@@ -1,159 +1,81 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, User as PrismaUser } from '@prisma/client';
 import { User } from '@blog/shared/src/models/User';
 import { IUserRepository } from '../core/interfaces/userRepository';
-import { QueryOptions, PaginatedResult } from '@blog/shared/src/types/pagination';
-import { parseColumnFilters } from '../utils/filterParser';
+import { BaseRepository, RepositoryConfig } from '../core/BaseRepository';
 
-export class UserRepository implements IUserRepository {
-  constructor(private prisma: PrismaClient) { }
-
-  async findAll(options?: QueryOptions): Promise<PaginatedResult<User>> {
-    const page = options?.pagination?.page ?? 0;
-    const limit = options?.pagination?.limit ?? 10;
-    const skip = page * limit;
-
-    // Build where clause for filtering
-    let where: any = {};
-    let globalSearch: string | undefined;
-
-    if (options?.filter) {
-      const parsedFilters = parseColumnFilters(options.filter);
-      where = parsedFilters.where;
-      globalSearch = parsedFilters.globalSearch;
-
-      // Handle global search filter (legacy support)
-      if (globalSearch) {
-        const globalConditions = [
-          {
-            displayName: {
-              contains: globalSearch,
-              mode: 'insensitive'
-            }
-          },
-          {
-            email: {
-              contains: globalSearch,
-              mode: 'insensitive'
-            }
-          }
-        ];
-
-        // If there are other filters, combine with AND
-        if (Object.keys(where).length > 0) {
-          where = {
-            AND: [
-              where,
-              { OR: globalConditions }
-            ]
-          };
-        } else {
-          where.OR = globalConditions;
-        }
-      }
-    }
-
-    // Build orderBy clause for sorting
-    const orderBy: any = {};
-    if (options?.sort) {
-      Object.keys(options.sort).forEach(key => {
-        orderBy[key] = options.sort![key];
-      });
-    } else {
-      orderBy.createdAt = 'desc'; // Default sort
-    }
-
-    // Execute queries in parallel
-    const [users, total, filteredTotal] = await Promise.all([
-      this.prisma.user.findMany({
-        where,
-        orderBy,
-        skip,
-        take: limit,
+export class UserRepository extends BaseRepository<User, PrismaUser> implements IUserRepository {
+  constructor(prisma: PrismaClient) {
+    const config: RepositoryConfig<User, PrismaUser> = {
+      model: prisma.user,
+      mapToShared: (user: PrismaUser): User => ({
+        id: user.id,
+        displayName: user.displayName,
+        email: user.email,
+        createdAt: user.createdAt.toISOString(),
+        updatedAt: user.updatedAt.toISOString()
       }),
-      this.prisma.user.count(), // Total count without filters
-      this.prisma.user.count({ where }), // Total count with filters
-    ]);
-
-    return {
-      data: users.map(this.mapToUser),
-      total,
-      filteredTotal,
-      page,
-      limit,
-      totalPages: Math.ceil(filteredTotal / limit),
+      mapToCreateInput: (data: Omit<User, 'id' | 'createdAt' | 'updatedAt'>) => ({
+        displayName: data.displayName,
+        email: data.email
+      }),
+      mapToUpdateInput: (data: Partial<User>) => ({
+        ...(data.displayName !== undefined && { displayName: data.displayName }),
+        ...(data.email !== undefined && { email: data.email })
+      }),
+      globalSearchConfig: {
+        searchFields: [
+          { field: 'displayName' },
+          { field: 'email' }
+        ]
+      },
+      defaultSort: { createdAt: 'desc' }
     };
-  }
 
-  async findById(id: string): Promise<User | null> {
-    const user = await this.prisma.user.findUnique({
-      where: { id }
-    });
-    return user ? this.mapToUser(user) : null;
+    super(prisma, config);
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    const user = await this.prisma.user.findUnique({
-      where: { email }
-    });
-    return user ? this.mapToUser(user) : null;
+    try {
+      const user = await this.config.model.findUnique({
+        where: { email }
+      });
+      return user ? this.config.mapToShared(user) : null;
+    } catch (error: any) {
+      this.handleError(error, 'findByEmail', { email });
+      throw error;
+    }
   }
 
   async findByIdentityId(identityId: string): Promise<User | null> {
-    const user = await this.prisma.user.findUnique({
-      where: { identityId }
-    });
-    return user ? this.mapToUser(user) : null;
-  }
-
-  async create(data: Omit<User, 'id' | 'createdAt' | 'updatedAt'> & { identityId: string }): Promise<User> {
-    const user = await this.prisma.user.create({
-      data: {
-        identityId: data.identityId,
-        email: data.email,
-        displayName: data.displayName
-      }
-    });
-    return this.mapToUser(user);
-  }
-
-  async update(id: string, data: Partial<User>): Promise<User> {
-    const user = await this.prisma.user.update({
-      where: { id },
-      data
-    });
-    return this.mapToUser(user);
-  }
-
-  async delete(id: string): Promise<boolean> {
-    await this.prisma.user.delete({
-      where: { id }
-    });
-    return true;
+    try {
+      const user = await this.config.model.findUnique({
+        where: { identityId }
+      });
+      return user ? this.config.mapToShared(user) : null;
+    } catch (error: any) {
+      this.handleError(error, 'findByIdentityId', { identityId });
+      throw error;
+    }
   }
 
   async upsertByIdentityId(identityId: string, data: Partial<User>): Promise<User> {
-    const user = await this.prisma.user.upsert({
-      where: { identityId },
-      update: {
-        displayName: data.displayName,
-        email: data.email
-      },
-      create: {
-        identityId,
-        email: data.email!,
-        displayName: data.displayName!
-      }
-    });
-    return this.mapToUser(user);
-  }
-
-  private mapToUser(user: any): User {
-    return {
-      id: user.id,
-      displayName: user.displayName,
-      email: user.email,
-      createdAt: user.createdAt.toISOString(),
-      updatedAt: user.updatedAt.toISOString()
-    };
+    try {
+      const user = await this.config.model.upsert({
+        where: { identityId },
+        update: {
+          displayName: data.displayName,
+          email: data.email
+        },
+        create: {
+          identityId,
+          email: data.email!,
+          displayName: data.displayName!
+        }
+      });
+      return this.config.mapToShared(user);
+    } catch (error: any) {
+      this.handleError(error, 'upsertByIdentityId', { identityId, data });
+      throw error;
+    }
   }
 }

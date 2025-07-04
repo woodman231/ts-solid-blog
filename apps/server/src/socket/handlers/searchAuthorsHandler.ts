@@ -45,7 +45,7 @@ export async function handleSearchAuthors(
             };
         }
 
-        const result = await services.userService.getAllUsers(queryOptions);
+        const result = await services.userService.getAll(queryOptions);
 
         // Map to the expected response format
         const authors = result.data.map(user => ({
