@@ -1,31 +1,53 @@
-import { PrismaClient, Post as PrismaPost, User as PrismaUser } from '@prisma/client';
-import { Post } from '@blog/shared/src/models/Post';
+import { PrismaClient, Post as PrismaPost, User as PrismaUser, Prisma } from '@prisma/client';
+import { Post, PostWithAuthor } from '@blog/shared/src/models/Post';
 import { IPostRepository } from '../core/interfaces/postRepository';
 import { BaseRepository, RepositoryConfig } from '../core/BaseRepository';
 
-// Type for Prisma Post with included Author
-type PrismaPostWithAuthor = PrismaPost & {
-  author: PrismaUser;
-};
+// Define the selector for type-safe queries with author relation
+export const postWithAuthorSelector = {
+  id: true,
+  title: true,
+  description: true,
+  body: true,
+  authorId: true,
+  createdAt: true,
+  updatedAt: true,
+  author: {
+    select: {
+      id: true,
+      displayName: true,
+      email: true,
+      createdAt: true,
+      updatedAt: true,
+    }
+  }
+} satisfies Prisma.PostSelect;
 
-export class PostRepository extends BaseRepository<Post, PrismaPostWithAuthor> implements IPostRepository {
+// Define the payload type based on the selector
+export type PostWithAuthorPayload = Prisma.PostGetPayload<{ select: typeof postWithAuthorSelector }>;
+
+export class PostRepository extends BaseRepository<PostWithAuthor, PostWithAuthorPayload, PrismaClient['post']> implements IPostRepository {
   constructor(prisma: PrismaClient) {
-    const config: RepositoryConfig<Post, PrismaPostWithAuthor> = {
-      model: prisma.post,
-      mapToShared: (post: PrismaPostWithAuthor): Post => ({
+    const config: RepositoryConfig<PostWithAuthor, PostWithAuthorPayload, PrismaClient['post']> = {
+      delegate: prisma.post,
+      mapToShared: (post: PostWithAuthorPayload): PostWithAuthor => ({
         id: post.id,
         title: post.title,
         description: post.description,
         body: post.body,
         authorId: post.authorId,
         createdAt: post.createdAt.toISOString(),
-        updatedAt: post.updatedAt.toISOString()
+        updatedAt: post.updatedAt.toISOString(),
+        author: {
+          id: post.author.id,
+          displayName: post.author.displayName,
+        }
       }),
       mapToCreateInput: (data: Omit<Post, 'id' | 'createdAt' | 'updatedAt'>) => ({
         title: data.title,
         description: data.description,
         body: data.body,
-        authorId: data.authorId
+        authorId: data.authorId,
       }),
       mapToUpdateInput: (data: Partial<Post>) => {
         const updateData: any = {};
@@ -54,11 +76,11 @@ export class PostRepository extends BaseRepository<Post, PrismaPostWithAuthor> i
   // Additional methods specific to Post
   async findByAuthorId(authorId: string): Promise<Post[]> {
     try {
-      const posts = await this.config.model.findMany({
+      const posts = await this.config.delegate.findMany({
         where: { authorId },
         include: this.config.include
       });
-      return posts.map(this.config.mapToShared);
+      return posts.map((post: any) => this.config.mapToShared(post));
     } catch (error: any) {
       this.handleError(error, 'findByAuthorId', { authorId });
       throw error;
@@ -75,18 +97,18 @@ export class PostRepository extends BaseRepository<Post, PrismaPostWithAuthor> i
       const skip = page * limit;
 
       const [posts, total] = await Promise.all([
-        this.config.model.findMany({
+        this.config.delegate.findMany({
           where: { authorId },
           include: this.config.include,
           skip,
           take: limit,
           orderBy: { createdAt: 'desc' }
         }),
-        this.config.model.count({ where: { authorId } })
+        this.config.delegate.count({ where: { authorId } })
       ]);
 
       return {
-        posts: posts.map(this.config.mapToShared),
+        posts: posts.map((post: any) => this.config.mapToShared(post)),
         total
       };
     } catch (error: any) {
@@ -102,13 +124,13 @@ export class PostRepository extends BaseRepository<Post, PrismaPostWithAuthor> i
         ? { title: { equals: title } }
         : { title: { contains: title, mode: 'insensitive' as const } };
 
-      const posts = await this.config.model.findMany({
+      const posts = await this.config.delegate.findMany({
         where: whereCondition,
         include: this.config.include,
         orderBy: { createdAt: 'desc' }
       });
 
-      return posts.map(this.config.mapToShared);
+      return posts.map((post: any) => this.config.mapToShared(post));
     } catch (error: any) {
       this.handleError(error, 'findByTitle', { title, exact });
       throw error;
@@ -118,13 +140,13 @@ export class PostRepository extends BaseRepository<Post, PrismaPostWithAuthor> i
   // Method to get recent posts
   async findRecent(limit: number = 10): Promise<Post[]> {
     try {
-      const posts = await this.config.model.findMany({
+      const posts = await this.config.delegate.findMany({
         include: this.config.include,
         orderBy: { createdAt: 'desc' },
         take: limit
       });
 
-      return posts.map(this.config.mapToShared);
+      return posts.map((post: any) => this.config.mapToShared(post));
     } catch (error: any) {
       this.handleError(error, 'findRecent', { limit });
       throw error;

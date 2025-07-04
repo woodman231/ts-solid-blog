@@ -1,27 +1,15 @@
 import { IPostService } from '../core/interfaces/postService';
 import { IPostRepository } from '../core/interfaces/postRepository';
-import { IUserRepository } from '../core/interfaces/userRepository';
 import { Post, PostWithAuthor } from '@blog/shared/src/models/Post';
 import { QueryOptions, PaginatedResult } from '@blog/shared/src/types/pagination';
 import { BaseService, ServiceConfig } from '../core/BaseService';
 
 export class PostService extends BaseService<Post> implements IPostService {
   private postRepository: IPostRepository;
-  private userRepository: IUserRepository;
 
-  constructor(postRepository: IPostRepository, userRepository: IUserRepository) {
+  constructor(postRepository: IPostRepository) {
     const config: ServiceConfig<Post> = {
       repository: postRepository,
-      enrichEntity: async (post: Post): Promise<PostWithAuthor> => {
-        const author = await userRepository.findById(post.authorId);
-        return {
-          ...post,
-          author: {
-            id: author?.id || post.authorId,
-            displayName: author?.displayName || 'Unknown Author'
-          }
-        };
-      },
       checkAuthorization: async (postId: string, userId: string): Promise<boolean> => {
         const post = await postRepository.findById(postId);
         return post !== null && post.authorId === userId;
@@ -29,7 +17,6 @@ export class PostService extends BaseService<Post> implements IPostService {
     };
     super(config);
     this.postRepository = postRepository;
-    this.userRepository = userRepository;
   }
 
   getAllPosts(options?: QueryOptions): Promise<PaginatedResult<PostWithAuthor>> {

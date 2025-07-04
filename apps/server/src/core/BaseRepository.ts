@@ -1,13 +1,26 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { QueryOptions, PaginatedResult } from '@blog/shared/src/types/pagination';
 import { parseColumnFilters } from '../utils/filterParser';
 
 /**
+ * Base type for Prisma model delegates
+ */
+export type PrismaModelDelegate = {
+    findMany: (args?: any) => Promise<any[]>;
+    findUnique: (args: any) => Promise<any>;
+    create: (args: any) => Promise<any>;
+    update: (args: any) => Promise<any>;
+    delete: (args: any) => Promise<any>;
+    count: (args?: any) => Promise<number>;
+    upsert?: (args: any) => Promise<any>;
+};
+
+/**
  * Configuration for the repository factory
  */
-export interface RepositoryConfig<TShared, TPrisma> {
+export interface RepositoryConfig<TShared, TPrisma, TDelegate extends PrismaModelDelegate> {
     /** The Prisma model delegate (e.g., prisma.user, prisma.post) */
-    model: any;
+    delegate: TDelegate;
 
     /** Function to map Prisma entity to shared model */
     mapToShared: (prismaEntity: TPrisma) => TShared;
@@ -39,7 +52,7 @@ export interface RepositoryConfig<TShared, TPrisma> {
     columnFieldMapping?: Record<string, string>;
 }
 
-export interface IBaseRepository<TShared, TPrisma> {
+export interface IBaseRepository<TShared, TPrisma, TDelegate extends PrismaModelDelegate> {
     findAll(options?: QueryOptions): Promise<PaginatedResult<TShared>>;
     findById(id: string): Promise<TShared | null>;
     create(data: Omit<TShared, 'id' | 'createdAt' | 'updatedAt'>): Promise<TShared>;
@@ -50,12 +63,12 @@ export interface IBaseRepository<TShared, TPrisma> {
 /**
  * Abstract base repository that provides common CRUD operations
  */
-export abstract class BaseRepository<TShared, TPrisma> implements IBaseRepository<TShared, TPrisma> {
-    protected config: RepositoryConfig<TShared, TPrisma>;
+export abstract class BaseRepository<TShared, TPrisma, TDelegate extends PrismaModelDelegate> implements IBaseRepository<TShared, TPrisma, TDelegate> {
+    protected config: RepositoryConfig<TShared, TPrisma, TDelegate>;
 
     constructor(
         protected prisma: PrismaClient,
-        config: RepositoryConfig<TShared, TPrisma>
+        config: RepositoryConfig<TShared, TPrisma, TDelegate>
     ) {
         this.config = config;
     }
@@ -71,15 +84,15 @@ export abstract class BaseRepository<TShared, TPrisma> implements IBaseRepositor
 
             // Execute queries in parallel
             const [entities, total, filteredTotal] = await Promise.all([
-                this.config.model.findMany({
+                this.config.delegate.findMany({
                     where,
                     orderBy,
                     skip,
                     take: limit,
                     include: this.config.include
                 }),
-                this.config.model.count(), // Total count without filters
-                this.config.model.count({ where }), // Total count with filters
+                this.config.delegate.count(), // Total count without filters
+                this.config.delegate.count({ where }), // Total count with filters
             ]);
 
             return {
@@ -98,7 +111,7 @@ export abstract class BaseRepository<TShared, TPrisma> implements IBaseRepositor
 
     async findById(id: string): Promise<TShared | null> {
         try {
-            const entity = await this.config.model.findUnique({
+            const entity = await this.config.delegate.findUnique({
                 where: { id },
                 include: this.config.include
             });
@@ -115,7 +128,7 @@ export abstract class BaseRepository<TShared, TPrisma> implements IBaseRepositor
                 ? this.config.mapToCreateInput(data)
                 : data;
 
-            const entity = await this.config.model.create({
+            const entity = await this.config.delegate.create({
                 data: createInput,
                 include: this.config.include
             });
@@ -133,7 +146,7 @@ export abstract class BaseRepository<TShared, TPrisma> implements IBaseRepositor
                 ? this.config.mapToUpdateInput(data)
                 : data;
 
-            const entity = await this.config.model.update({
+            const entity = await this.config.delegate.update({
                 where: { id },
                 data: updateInput,
                 include: this.config.include
@@ -148,7 +161,7 @@ export abstract class BaseRepository<TShared, TPrisma> implements IBaseRepositor
 
     async delete(id: string): Promise<boolean> {
         try {
-            await this.config.model.delete({
+            await this.config.delegate.delete({
                 where: { id }
             });
             return true;
@@ -176,7 +189,7 @@ export abstract class BaseRepository<TShared, TPrisma> implements IBaseRepositor
 
             // Handle global search
             if (globalSearch && this.config.globalSearchConfig) {
-                const globalConditions = this.config.globalSearchConfig.searchFields.map(({ field }) => {
+                const globalConditions = this.config.globalSearchConfig.searchFields.map(({ field }: { field: string }) => {
                     const condition: any = {};
                     this.setNestedValue(condition, field, {
                         contains: globalSearch,
@@ -258,9 +271,9 @@ export abstract class BaseRepository<TShared, TPrisma> implements IBaseRepositor
 /**
  * Factory function to create repository instances
  */
-export function createRepository<TShared, TPrisma>(
+export function createRepository<TShared, TPrisma, TDelegate extends PrismaModelDelegate>(
     prisma: PrismaClient,
-    config: RepositoryConfig<TShared, TPrisma>
-): BaseRepository<TShared, TPrisma> {
-    return new (class extends BaseRepository<TShared, TPrisma> { })(prisma, config);
+    config: RepositoryConfig<TShared, TPrisma, TDelegate>
+): BaseRepository<TShared, TPrisma, TDelegate> {
+    return new (class extends BaseRepository<TShared, TPrisma, TDelegate> { })(prisma, config);
 }

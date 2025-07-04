@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { BaseRepository, RepositoryConfig, createRepository } from '../core/BaseRepository';
+import { BaseRepository, RepositoryConfig, createRepository, PrismaModelDelegate } from '../core/BaseRepository';
 
 /**
  * Example of how to create repositories for future entities using the factory
@@ -47,8 +47,8 @@ export class RepositoryFactory {
      * Creates a Comment repository (example for future use)
      */
     createCommentRepository() {
-        const config: RepositoryConfig<Comment, any> = {
-            model: (this.prisma as any).comment, // Assuming this exists in future
+        const config: RepositoryConfig<Comment, any, PrismaModelDelegate> = {
+            delegate: (this.prisma as any).comment, // Assuming this exists in future            
             mapToShared: (comment: any): Comment => ({
                 id: comment.id,
                 content: comment.content,
@@ -67,15 +67,15 @@ export class RepositoryFactory {
             defaultSort: { createdAt: 'desc' }
         };
 
-        return createRepository<Comment, any>(this.prisma, config);
+        return createRepository<Comment, any, PrismaModelDelegate>(this.prisma, config);
     }
 
     /**
      * Creates a Tag repository (example for future use)
      */
     createTagRepository() {
-        const config: RepositoryConfig<Tag, any> = {
-            model: (this.prisma as any).tag, // Assuming this exists in future
+        const config: RepositoryConfig<Tag, any, PrismaModelDelegate> = {
+            delegate: (this.prisma as any).tag, // Assuming this exists in future            
             mapToShared: (tag: any): Tag => ({
                 id: tag.id,
                 name: tag.name,
@@ -93,15 +93,15 @@ export class RepositoryFactory {
             defaultSort: { name: 'asc' }
         };
 
-        return createRepository<Tag, any>(this.prisma, config);
+        return createRepository<Tag, any, PrismaModelDelegate>(this.prisma, config);
     }
 
     /**
      * Creates a Category repository with hierarchical support
      */
     createCategoryRepository() {
-        const config: RepositoryConfig<Category, any> = {
-            model: (this.prisma as any).category, // Assuming this exists in future
+        const config: RepositoryConfig<Category, any, PrismaModelDelegate> = {
+            delegate: (this.prisma as any).category, // Assuming this exists in future            
             mapToShared: (category: any): Category => ({
                 id: category.id,
                 name: category.name,
@@ -127,32 +127,32 @@ export class RepositoryFactory {
         };
 
         // Return an extended repository with category-specific methods
-        class CategoryRepository extends BaseRepository<Category, any> {
+        class CategoryRepository extends BaseRepository<Category, any, PrismaModelDelegate> {
             async findRootCategories(): Promise<Category[]> {
-                const categories = await this.config.model.findMany({
+                const categories = await this.config.delegate.findMany({
                     where: { parentId: null },
                     include: this.config.include,
                     orderBy: { name: 'asc' }
                 });
-                return categories.map(this.config.mapToShared);
+                return categories.map((cat: any) => this.config.mapToShared(cat));
             }
 
             async findByParentId(parentId: string): Promise<Category[]> {
-                const categories = await this.config.model.findMany({
+                const categories = await this.config.delegate.findMany({
                     where: { parentId },
                     include: this.config.include,
                     orderBy: { name: 'asc' }
                 });
-                return categories.map(this.config.mapToShared);
+                return categories.map((cat: any) => this.config.mapToShared(cat));
             }
 
             async findActiveCategories(): Promise<Category[]> {
-                const categories = await this.config.model.findMany({
+                const categories = await this.config.delegate.findMany({
                     where: { isActive: true },
                     include: this.config.include,
                     orderBy: { name: 'asc' }
                 });
-                return categories.map(this.config.mapToShared);
+                return categories.map((cat: any) => this.config.mapToShared(cat));
             }
         }
 
@@ -162,14 +162,14 @@ export class RepositoryFactory {
     /**
      * Creates a generic repository for any entity with minimal configuration
      */
-    createGenericRepository<TShared, TPrisma>(
-        modelDelegate: any,
+    createGenericRepository<TShared, TPrisma, TDelegate extends PrismaModelDelegate>(
+        modelDelegate: TDelegate,
         mapToShared: (entity: TPrisma) => TShared,
         searchFields?: string[],
         include?: any
     ) {
-        const config: RepositoryConfig<TShared, TPrisma> = {
-            model: modelDelegate,
+        const config: RepositoryConfig<TShared, TPrisma, TDelegate> = {
+            delegate: modelDelegate,
             mapToShared,
             globalSearchConfig: searchFields ? {
                 searchFields: searchFields.map(field => ({ field }))
@@ -178,7 +178,7 @@ export class RepositoryFactory {
             defaultSort: { createdAt: 'desc' }
         };
 
-        return createRepository<TShared, TPrisma>(this.prisma, config);
+        return createRepository<TShared, TPrisma, TDelegate>(this.prisma, config);
     }
 }
 

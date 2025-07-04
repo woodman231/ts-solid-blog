@@ -1,13 +1,26 @@
-import { PrismaClient, User as PrismaUser } from '@prisma/client';
+import { PrismaClient, User as PrismaUser, Prisma } from '@prisma/client';
 import { User } from '@blog/shared/src/models/User';
 import { IUserRepository } from '../core/interfaces/userRepository';
 import { BaseRepository, RepositoryConfig } from '../core/BaseRepository';
 
-export class UserRepository extends BaseRepository<User, PrismaUser> implements IUserRepository {
+// Define the selector for type-safe queries
+export const userSelector = {
+  id: true,
+  identityId: true,
+  email: true,
+  displayName: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.UserSelect;
+
+// Define the payload type based on the selector
+export type UserPayload = Prisma.UserGetPayload<{ select: typeof userSelector }>;
+
+export class UserRepository extends BaseRepository<User, UserPayload, PrismaClient['user']> implements IUserRepository {
   constructor(prisma: PrismaClient) {
-    const config: RepositoryConfig<User, PrismaUser> = {
-      model: prisma.user,
-      mapToShared: (user: PrismaUser): User => ({
+    const config: RepositoryConfig<User, UserPayload, PrismaClient['user']> = {
+      delegate: prisma.user,
+      mapToShared: (user: UserPayload): User => ({
         id: user.id,
         displayName: user.displayName,
         email: user.email,
@@ -36,7 +49,7 @@ export class UserRepository extends BaseRepository<User, PrismaUser> implements 
 
   async findByEmail(email: string): Promise<User | null> {
     try {
-      const user = await this.config.model.findUnique({
+      const user = await this.config.delegate.findUnique({
         where: { email }
       });
       return user ? this.config.mapToShared(user) : null;
@@ -48,7 +61,7 @@ export class UserRepository extends BaseRepository<User, PrismaUser> implements 
 
   async findByIdentityId(identityId: string): Promise<User | null> {
     try {
-      const user = await this.config.model.findUnique({
+      const user = await this.config.delegate.findUnique({
         where: { identityId }
       });
       return user ? this.config.mapToShared(user) : null;
@@ -60,7 +73,7 @@ export class UserRepository extends BaseRepository<User, PrismaUser> implements 
 
   async upsertByIdentityId(identityId: string, data: Partial<User>): Promise<User> {
     try {
-      const user = await this.config.model.upsert({
+      const user = await this.config.delegate.upsert({
         where: { identityId },
         update: {
           displayName: data.displayName,

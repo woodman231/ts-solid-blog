@@ -35,14 +35,14 @@ export async function createServer() {
 
   // Set up Prisma client
   const prisma = new PrismaClient();
-  
+
   // Set up dependency injection container
   const container = new Container();
-  
+
   // Register repositories
   container.register('userRepository', new UserRepository(prisma));
   container.register('postRepository', new PostRepository(prisma));
-  
+
   // Register services
   container.register('authService', new AuthService(
     container.get('userRepository'),
@@ -50,16 +50,13 @@ export async function createServer() {
     process.env.ADB2C_CLIENT_ID || '',
     process.env.ADB2C_CLIENT_SECRET || ''
   ));
-  
+
   container.register('userService', new UserService(container.get('userRepository')));
-  container.register('postService', new PostService(
-    container.get('postRepository'),
-    container.get('userRepository')
-  ));
+  container.register('postService', new PostService(container.get('postRepository')));
 
   // Set up authentication middleware
   setupAuthentication(app, container.get('authService'));
-  
+
   // Set up socket handlers
   setupSocketHandlers(io, container);
 
@@ -69,6 +66,6 @@ export async function createServer() {
   // Handle connection errors
   pubClient.on('error', (err) => logger.error('Redis Pub Client Error:', err));
   subClient.on('error', (err) => logger.error('Redis Sub Client Error:', err));
-  
+
   return httpServer;
 }
