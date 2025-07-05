@@ -3,15 +3,38 @@ import { useQuery } from '@tanstack/react-query';
 import { useSocketStore } from '../../lib/socket';
 import { Link } from '@tanstack/react-router';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { TileView, TileRenderer } from '../../components/ui/TileView';
 import { User } from '@blog/shared/src/models/User';
 import { Post } from '@blog/shared/src/models/Post';
-import { LoadPageRequest, EntityDataResponse } from '@blog/shared/src/index';
+import { LoadPageRequest, EntityDataResponse, ENTITY_TYPES } from '@blog/shared/src/index';
 
 export function UserDetailsPage() {
     const { userId } = useParams({ from: '/layout/users/$userId' });
     const { sendRequest } = useSocketStore();
 
-    // Fetch user data and posts
+    // Tile renderer for posts
+    const postTileRenderer: TileRenderer<Post> = (post) => (
+        <div key={post.id} className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="p-6">
+                <h3 className="text-lg font-medium text-gray-900 truncate">{post.title}</h3>
+                <p className="mt-2 text-sm text-gray-500 line-clamp-2">{post.description}</p>
+                <div className="mt-4">
+                    <Link
+                        to="/posts/$postId"
+                        params={{ postId: post.id }}
+                        className="text-primary-600 hover:text-primary-800 text-sm font-medium"
+                    >
+                        Read more →
+                    </Link>
+                </div>
+            </div>
+            <div className="bg-gray-50 px-6 py-2 text-xs text-gray-500">
+                Posted on {new Date(post.createdAt).toLocaleDateString()}
+            </div>
+        </div>
+    );
+
+    // Fetch user data
     const { data, isLoading, error } = useQuery({
         queryKey: ['user', userId],
         queryFn: async () => {
@@ -26,7 +49,6 @@ export function UserDetailsPage() {
             const response = await sendRequest<LoadPageRequest, EntityDataResponse>(request);
             return {
                 user: response.responseParams.entities.data.user?.[0] as User | undefined,
-                posts: response.responseParams.entities.data.posts as Post[],
             };
         },
     });
@@ -45,7 +67,7 @@ export function UserDetailsPage() {
         );
     }
 
-    const { user, posts } = data;
+    const { user } = data;
 
     return (
         <div className="space-y-8">
@@ -86,34 +108,18 @@ export function UserDetailsPage() {
 
             <h2 className="text-xl font-bold mt-8">Posts by {user.displayName}</h2>
 
-            {posts.length > 0 ? (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {posts.map((post) => (
-                        <div key={post.id} className="bg-white rounded-lg shadow overflow-hidden">
-                            <div className="p-6">
-                                <h3 className="text-lg font-medium text-gray-900 truncate">{post.title}</h3>
-                                <p className="mt-2 text-sm text-gray-500 line-clamp-2">{post.description}</p>
-                                <div className="mt-4">
-                                    <Link
-                                        to="/posts/$postId"
-                                        params={{ postId: post.id }}
-                                        className="text-primary-600 hover:text-primary-800 text-sm font-medium"
-                                    >
-                                        Read more →
-                                    </Link>
-                                </div>
-                            </div>
-                            <div className="bg-gray-50 px-6 py-2 text-xs text-gray-500">
-                                Posted on {new Date(post.createdAt).toLocaleDateString()}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            ) : (
-                <div className="bg-white rounded-lg shadow p-6 text-center">
-                    <p className="text-gray-500">This user hasn't created any posts yet.</p>
-                </div>
-            )}
+            <TileView
+                entityType={ENTITY_TYPES.POSTS}
+                tileRenderer={postTileRenderer}
+                initialSorting={{ createdAt: 'desc' }}
+                enableGlobalFilter={true}
+                globalFilterPlaceholder="Search this user's posts..."
+                title=""
+                defaultPageSize={12}
+                staleTime={1000 * 30}
+                emptyStateMessage={`${user.displayName} hasn't created any posts yet.`}
+                tileContainerClassName="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+            />
         </div>
     );
 }
