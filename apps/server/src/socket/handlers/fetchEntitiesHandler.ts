@@ -1,14 +1,10 @@
 import { Socket } from 'socket.io';
 import { FetchEntitiesRequest } from '@blog/shared/src/socket/Request';
 import { EntityDataResponse, ErrorResponse } from '@blog/shared/src/socket/Response';
-import { IUserService } from '../../core/interfaces/userService';
-import { IPostService } from '../../core/interfaces/postService';
 import { QueryOptions, PaginatedResult } from '@blog/shared/src/types/pagination';
 import { logger } from '../../utils/logger';
 import { createServiceContext } from '../../core/BaseService';
 import {
-  ENTITY_TYPES,
-  EntityType,
   isValidEntityType,
   getSupportedEntityTypes
 } from '@blog/shared/src/constants/entityTypes';
@@ -99,6 +95,8 @@ export async function handleFetchEntities(
           page: result.page,
           limit: result.limit,
           totalPages: result.totalPages,
+          // Include current user ID in all responses
+          currentUserId: userId,
         }
       }
     });

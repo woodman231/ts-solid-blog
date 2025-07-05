@@ -42,7 +42,8 @@ export async function handleLoadPage(
                         page: usersResult.page,
                         limit: usersResult.limit,
                         filteredTotal: usersResult.filteredTotal,
-                        totalPages: usersResult.totalPages
+                        totalPages: usersResult.totalPages,
+                        currentUserId: userId,
                     }
                 }
             });
@@ -71,7 +72,8 @@ export async function handleLoadPage(
                         page: 0,
                         limit: 1,
                         filteredTotal: user ? 1 : 0,
-                        totalPages: 1
+                        totalPages: 1,
+                        currentUserId: userId,
                     }
                 }
             });
@@ -91,7 +93,8 @@ export async function handleLoadPage(
                         page: postsResult.page,
                         limit: postsResult.limit,
                         filteredTotal: postsResult.filteredTotal,
-                        totalPages: postsResult.totalPages
+                        totalPages: postsResult.totalPages,
+                        currentUserId: userId,
                     }
                 }
             });
@@ -115,7 +118,8 @@ export async function handleLoadPage(
                         page: 0,
                         limit: 1,
                         filteredTotal: currentUser ? 1 : 0,
-                        totalPages: 1
+                        totalPages: 1,
+                        currentUserId: userId,
                     }
                 }
             });
@@ -147,7 +151,8 @@ export async function handleLoadPage(
                         page: 0,
                         limit: 1,
                         filteredTotal: post ? 1 : 0,
-                        totalPages: 1
+                        totalPages: 1,
+                        currentUserId: userId,
                     }
                 }
             });

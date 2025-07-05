@@ -12,13 +12,14 @@ import { FetchEntitiesRequest, EntityDataResponse } from '@blog/shared/src/index
 import { LoadingSpinner } from './LoadingSpinner';
 import { MagnifyingGlassIcon } from '@heroicons/react/20/solid';
 import { ColumnFilter, ColumnFilterConfig, FilterValue } from './ColumnFilter';
+import { EntityType } from '@blog/shared/src/index';
 
 interface ColumnFilters {
     [columnId: string]: FilterValue;
 }
 
 interface DataTableProps<T> {
-    entityType: 'posts' | 'users';
+    entityType: EntityType;
     columns: ColumnDef<T>[];
     initialSorting?: SortingState;
     enableGlobalFilter?: boolean;

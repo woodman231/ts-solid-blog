@@ -2,6 +2,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { Link } from '@tanstack/react-router';
 import { User } from '@blog/shared/src/models/User';
 import { DataTable, ColumnFilterConfig } from '../../components/ui/DataTable';
+import { ENTITY_TYPES } from '@blog/shared/src/index';
 
 export function UsersListPage() {
     // Configure column filters
@@ -54,7 +55,7 @@ export function UsersListPage() {
 
     return (
         <DataTable
-            entityType="users"
+            entityType={ENTITY_TYPES.USERS}
             columns={columns}
             initialSorting={[{ id: 'createdAt', desc: true }]}
             enableGlobalFilter={true}

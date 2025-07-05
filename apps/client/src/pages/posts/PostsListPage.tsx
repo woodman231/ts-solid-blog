@@ -1,37 +1,15 @@
 import { useState, useCallback } from 'react';
 import { Link } from '@tanstack/react-router';
-import { useQuery } from '@tanstack/react-query';
 import { ColumnDef } from '@tanstack/react-table';
 import { PostWithAuthor } from '@blog/shared/src/models/Post';
 import { DataTable, ColumnFilterConfig } from '../../components/ui/DataTable';
 import { DeletePostDialog } from '../../components/posts/DeletePostDialog';
-import { useSocketStore } from '../../lib/socket';
-import { LoadPageRequest, EntityDataResponse } from '@blog/shared/src/index';
-import { useAuth } from '../../auth/useAuth';
 import { useAuthorSearch } from '../../hooks/useAuthorSearch';
+import { ENTITY_TYPES } from '@blog/shared/src/index';
+
 export function PostsListPage() {
-    const { sendRequest } = useSocketStore();
-    const { user: account } = useAuth();
     const [postToDelete, setPostToDelete] = useState<string | null>(null);
-
-    // Fetch current user data to get the database user ID
-    const { data: currentUser } = useQuery({
-        queryKey: ['currentUser'],
-        queryFn: async () => {
-            const request: LoadPageRequest = {
-                requestType: 'loadPage',
-                requestParams: {
-                    pageName: 'currentUser',
-                },
-            };
-
-            const response = await sendRequest<LoadPageRequest, EntityDataResponse>(request);
-            return response.responseParams.entities.data.user?.[0];
-        },
-        enabled: !!account, // Only fetch if user is authenticated
-    });
-
-    const userId = currentUser?.id || '';
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
     // Configure column filters
     const columnFilterConfigs: Record<string, ColumnFilterConfig> = {
@@ -109,7 +87,7 @@ export function PostsListPage() {
             header: '',
             cell: ({ row }) => {
                 const post = row.original;
-                const isAuthor = post.authorId === userId;
+                const isAuthor = post.authorId === currentUserId;
 
                 if (!isAuthor) {
                     return null;
@@ -145,7 +123,7 @@ export function PostsListPage() {
     return (
         <>
             <DataTable
-                entityType="posts"
+                entityType={ENTITY_TYPES.POSTS}
                 columns={columns}
                 initialSorting={[{ id: 'createdAt', desc: true }]}
                 enableGlobalFilter={true}
@@ -164,6 +142,12 @@ export function PostsListPage() {
                 defaultPageSize={20}
                 staleTime={1000 * 30} // 30 seconds
                 refetchOnMount="always"
+                onDataChange={(data) => {
+                    // Extract currentUserId from the response
+                    if (data && data.data?.entities?.currentUserId) {
+                        setCurrentUserId(data.data.entities.currentUserId);
+                    }
+                }}
             />
 
             {/* Delete confirmation dialog */}
