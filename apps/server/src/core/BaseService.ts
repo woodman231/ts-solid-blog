@@ -2,6 +2,31 @@ import { QueryOptions, PaginatedResult } from '@blog/shared/src/types/pagination
 import { IBaseRepository, PrismaModelDelegate } from './BaseRepository';
 
 /**
+ * Helper function to create a ServiceContext object
+ */
+export function createServiceContext(userId: string, roles?: string[], metadata?: Record<string, any>): ServiceContext {
+    return {
+        userId,
+        roles,
+        metadata
+    };
+}
+
+/**
+ * Context object for service operations that require user authentication or other metadata
+ */
+export interface ServiceContext {
+    /** The ID of the user performing the operation */
+    userId: string;
+
+    /** Optional user roles for role-based access control */
+    roles?: string[];
+
+    /** Optional additional metadata that might be needed for authorization */
+    metadata?: Record<string, any>;
+}
+
+/**
  * Base service interface that all services should implement
  */
 export interface IBaseService<T> {
@@ -10,6 +35,13 @@ export interface IBaseService<T> {
     create(data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>): Promise<T>;
     update(id: string, data: Partial<T>): Promise<T>;
     delete(id: string): Promise<boolean>;
+
+    // Context-aware methods with user authorization
+    getAllWithContext(context: ServiceContext, options?: QueryOptions): Promise<PaginatedResult<T>>;
+    getByIdWithContext(context: ServiceContext, id: string): Promise<T | null>;
+    createWithContext(context: ServiceContext, data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>): Promise<T>;
+    updateWithContext(context: ServiceContext, id: string, data: Partial<T>): Promise<T>;
+    deleteWithContext(context: ServiceContext, id: string): Promise<boolean>;
 }
 
 /**
@@ -171,6 +203,92 @@ export abstract class BaseService<T, R extends IBaseRepository<T, any, PrismaMod
             return await this.config.repository.delete(id);
         } catch (error: any) {
             this.handleError(error, 'delete', { id });
+            throw error;
+        }
+    }
+
+    // Context-aware methods with user authorization
+    async getAllWithContext(context: ServiceContext, options?: QueryOptions): Promise<PaginatedResult<T>> {
+        try {
+            // Check authorization for read operation
+            if (this.config.checkAuthorization) {
+                const authorized = await this.config.checkAuthorization(context.userId, 'read');
+                if (!authorized) {
+                    throw new Error('Unauthorized: You do not have permission to view this resource');
+                }
+            }
+
+            return await this.getAll(options);
+        } catch (error: any) {
+            this.handleError(error, 'getAllWithContext', { context, options });
+            throw error;
+        }
+    }
+
+    async getByIdWithContext(context: ServiceContext, id: string): Promise<T | null> {
+        try {
+            // Check authorization for read operation
+            if (this.config.checkAuthorization) {
+                const authorized = await this.config.checkAuthorization(context.userId, 'read', id);
+                if (!authorized) {
+                    throw new Error('Unauthorized: You do not have permission to view this resource');
+                }
+            }
+
+            return await this.getById(id);
+        } catch (error: any) {
+            this.handleError(error, 'getByIdWithContext', { context, id });
+            throw error;
+        }
+    }
+
+    async createWithContext(context: ServiceContext, data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>): Promise<T> {
+        try {
+            // Check authorization for create operation
+            if (this.config.checkAuthorization) {
+                const authorized = await this.config.checkAuthorization(context.userId, 'create');
+                if (!authorized) {
+                    throw new Error('Unauthorized: You do not have permission to create this resource');
+                }
+            }
+
+            return await this.create(data);
+        } catch (error: any) {
+            this.handleError(error, 'createWithContext', { context, data });
+            throw error;
+        }
+    }
+
+    async updateWithContext(context: ServiceContext, id: string, data: Partial<T>): Promise<T> {
+        try {
+            // Check authorization for update operation
+            if (this.config.checkAuthorization) {
+                const authorized = await this.config.checkAuthorization(context.userId, 'update', id);
+                if (!authorized) {
+                    throw new Error('Unauthorized: You do not have permission to update this resource');
+                }
+            }
+
+            return await this.update(id, data);
+        } catch (error: any) {
+            this.handleError(error, 'updateWithContext', { context, id, data });
+            throw error;
+        }
+    }
+
+    async deleteWithContext(context: ServiceContext, id: string): Promise<boolean> {
+        try {
+            // Check authorization for delete operation
+            if (this.config.checkAuthorization) {
+                const authorized = await this.config.checkAuthorization(context.userId, 'delete', id);
+                if (!authorized) {
+                    throw new Error('Unauthorized: You do not have permission to delete this resource');
+                }
+            }
+
+            return await this.delete(id);
+        } catch (error: any) {
+            this.handleError(error, 'deleteWithContext', { context, id });
             throw error;
         }
     }

@@ -5,6 +5,7 @@ import { IUserService } from '../../core/interfaces/userService';
 import { IPostService } from '../../core/interfaces/postService';
 import { QueryOptions, PaginatedResult } from '@blog/shared/src/types/pagination';
 import { logger } from '../../utils/logger';
+import { createServiceContext } from '../../core/BaseService';
 
 export async function handleFetchEntities(
   socket: Socket,
@@ -18,6 +19,9 @@ export async function handleFetchEntities(
   try {
     const { entityType, filterOptions, sort, page = 0, limit = 10 } = request.requestParams;
     const userId = socket.data.userId;
+
+    // Create service context
+    const context = createServiceContext(userId);
 
     // Validate entity type
     if (!['users', 'posts'].includes(entityType)) {
@@ -63,7 +67,7 @@ export async function handleFetchEntities(
         break;
 
       case 'posts':
-        result = await services.postService.getAll(queryOptions);
+        result = await services.postService.getAllPostsWithContext(context, queryOptions);
         break;
 
       default:

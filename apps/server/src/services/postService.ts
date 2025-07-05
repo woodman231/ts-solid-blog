@@ -2,20 +2,61 @@ import { IPostService } from '../core/interfaces/postService';
 import { IPostRepository } from '../core/interfaces/postRepository';
 import { Post, PostWithAuthor } from '@blog/shared/src/models/Post';
 import { QueryOptions, PaginatedResult } from '@blog/shared/src/types/pagination';
-import { BaseService, ServiceConfig } from '../core/BaseService';
+import { BaseService, ServiceConfig, ServiceContext } from '../core/BaseService';
 
 export class PostService extends BaseService<Post, IPostRepository> implements IPostService {
   constructor(postRepository: IPostRepository) {
     const config: ServiceConfig<Post, IPostRepository> = {
       repository: postRepository,
-      checkAuthorization: async (postId: string, userId: string): Promise<boolean> => {
-        const post = await postRepository.findById(postId);
-        return post !== null && post.authorId === userId;
+      checkAuthorization: async (userId: string, operation: string, entityId?: string): Promise<boolean> => {
+        // For posts, we need to check if the user is the author
+        if (operation === 'read') {
+          // Anyone can read posts (you can modify this based on your requirements)
+          return true;
+        }
+
+        if (operation === 'create') {
+          // Any authenticated user can create posts
+          return true;
+        }
+
+        if ((operation === 'update' || operation === 'delete') && entityId) {
+          // Only the author can update or delete their posts
+          const post = await postRepository.findById(entityId);
+          return post !== null && post.authorId === userId;
+        }
+
+        return false;
       },
     };
     super(config);
   }
 
+  // Context-aware methods with authorization
+  getAllPostsWithContext(context: ServiceContext, options?: QueryOptions): Promise<PaginatedResult<PostWithAuthor>> {
+    return this.getAllWithContext(context, options) as Promise<PaginatedResult<PostWithAuthor>>;
+  }
+
+  getPostByIdWithContext(context: ServiceContext, id: string): Promise<PostWithAuthor | null> {
+    return this.getByIdWithContext(context, id) as Promise<PostWithAuthor | null>;
+  }
+
+  createPostWithContext(context: ServiceContext, postData: Omit<Post, 'id' | 'authorId' | 'createdAt' | 'updatedAt'>): Promise<Post> {
+    return this.createWithContext(context, {
+      ...postData,
+      authorId: context.userId
+    });
+  }
+
+  updatePostWithContext(context: ServiceContext, id: string, postData: Partial<Post>): Promise<Post> {
+    return this.updateWithContext(context, id, postData);
+  }
+
+  deletePostWithContext(context: ServiceContext, id: string): Promise<boolean> {
+    return this.deleteWithContext(context, id);
+  }
+
+  // Legacy methods (keeping for backward compatibility)
   getAllPosts(options?: QueryOptions): Promise<PaginatedResult<PostWithAuthor>> {
     return this.getAll(options) as Promise<PaginatedResult<PostWithAuthor>>;
   }

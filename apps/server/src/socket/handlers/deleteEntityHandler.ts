@@ -3,6 +3,7 @@ import { DeleteEntityRequest } from '@blog/shared/src/socket/Request';
 import { SuccessResponse, ErrorResponse } from '@blog/shared/src/socket/Response';
 import { IUserService } from '../../core/interfaces/userService';
 import { IPostService } from '../../core/interfaces/postService';
+import { createServiceContext } from '../../core/BaseService';
 
 export async function handleDeleteEntity(
     socket: Socket,
@@ -16,18 +17,14 @@ export async function handleDeleteEntity(
     const { entityType, entityId } = request.requestParams;
     const userId = socket.data.userId;
 
+    // Create service context
+    const context = createServiceContext(userId);
+
     try {
         switch (entityType) {
             case 'posts':
-                // Check if user is authorized to delete this post
-                const isAuthorized = await services.postService.isAuthorized(entityId, userId);
-
-                if (!isAuthorized) {
-                    throw new Error('You are not authorized to delete this post');
-                }
-
-                // Delete the post                
-                const deleted = await services.postService.delete(entityId);
+                // Use context-aware method that includes authorization
+                const deleted = await services.postService.deletePostWithContext(context, entityId);
 
                 if (deleted) {
                     callback({

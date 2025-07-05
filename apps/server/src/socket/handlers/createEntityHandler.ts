@@ -4,6 +4,7 @@ import { SuccessResponse, ErrorResponse } from '@blog/shared/src/socket/Response
 import { IUserService } from '../../core/interfaces/userService';
 import { IPostService } from '../../core/interfaces/postService';
 import { Post } from '@blog/shared/src/models/Post';
+import { createServiceContext } from '../../core/BaseService';
 
 export async function handleCreateEntity(
     socket: Socket,
@@ -17,6 +18,9 @@ export async function handleCreateEntity(
     const { entityType, entityData } = request.requestParams;
     const userId = socket.data.userId;
 
+    // Create service context
+    const context = createServiceContext(userId);
+
     try {
         switch (entityType) {
             case 'posts':
@@ -27,10 +31,7 @@ export async function handleCreateEntity(
                     throw new Error('Post title is required');
                 }
 
-                const newPost = await services.postService.create({
-                    ...postData,
-                    authorId: userId
-                });
+                const newPost = await services.postService.createPostWithContext(context, postData);
 
                 callback({
                     responseType: 'success',

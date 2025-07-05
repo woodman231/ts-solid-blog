@@ -4,6 +4,7 @@ import { EntityDataResponse } from '@blog/shared/src/socket/Response';
 import { IUserService } from '../../core/interfaces/userService';
 import { IPostService } from '../../core/interfaces/postService';
 import { QueryOptions } from '@blog/shared/src/types/pagination';
+import { createServiceContext } from '../../core/BaseService';
 
 export async function handleLoadPage(
     socket: Socket,
@@ -16,6 +17,9 @@ export async function handleLoadPage(
 ): Promise<void> {
     const { pageName } = request.requestParams;
     const userId = socket.data.userId;
+
+    // Create service context
+    const context = createServiceContext(userId);
 
     // Default pagination settings
     const queryOptions: QueryOptions = {
@@ -74,7 +78,7 @@ export async function handleLoadPage(
             break;
 
         case 'postsList':
-            const postsResult = await services.postService.getAllPosts(queryOptions);
+            const postsResult = await services.postService.getAllPostsWithContext(context, queryOptions);
 
             callback({
                 responseType: 'setEntityData',
@@ -123,7 +127,7 @@ export async function handleLoadPage(
                 throw new Error('Post ID is required for post details page');
             }
 
-            const post = await services.postService.getById(postIdParam);
+            const post = await services.postService.getPostByIdWithContext(context, postIdParam);
 
             // Also fetch the author information
             let author = null;

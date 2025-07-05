@@ -63,7 +63,6 @@ export class RepositoryFactory {
                     { field: 'author.displayName', isNested: true }
                 ]
             },
-            include: { author: true, post: true },
             defaultSort: { createdAt: 'desc' }
         };
 
@@ -119,10 +118,6 @@ export class RepositoryFactory {
                     { field: 'slug' }
                 ]
             },
-            include: {
-                parent: true,
-                children: true
-            },
             defaultSort: { name: 'asc' }
         };
 
@@ -131,7 +126,6 @@ export class RepositoryFactory {
             async findRootCategories(): Promise<Category[]> {
                 const categories = await this.config.delegate.findMany({
                     where: { parentId: null },
-                    include: this.config.include,
                     orderBy: { name: 'asc' }
                 });
                 return categories.map((cat: any) => this.config.mapToShared(cat));
@@ -140,7 +134,6 @@ export class RepositoryFactory {
             async findByParentId(parentId: string): Promise<Category[]> {
                 const categories = await this.config.delegate.findMany({
                     where: { parentId },
-                    include: this.config.include,
                     orderBy: { name: 'asc' }
                 });
                 return categories.map((cat: any) => this.config.mapToShared(cat));
@@ -149,7 +142,6 @@ export class RepositoryFactory {
             async findActiveCategories(): Promise<Category[]> {
                 const categories = await this.config.delegate.findMany({
                     where: { isActive: true },
-                    include: this.config.include,
                     orderBy: { name: 'asc' }
                 });
                 return categories.map((cat: any) => this.config.mapToShared(cat));
@@ -174,7 +166,6 @@ export class RepositoryFactory {
             globalSearchConfig: searchFields ? {
                 searchFields: searchFields.map(field => ({ field }))
             } : undefined,
-            include,
             defaultSort: { createdAt: 'desc' }
         };
 

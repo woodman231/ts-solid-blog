@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { QueryOptions, PaginatedResult } from '@blog/shared/src/types/pagination';
 import { parseColumnFilters } from '../utils/filterParser';
 
