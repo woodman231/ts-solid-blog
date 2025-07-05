@@ -10,6 +10,8 @@ import {
   isDeleteEntityRequest,
   isSearchAuthorsRequest
 } from '@blog/shared';
+import { RESPONSE_TYPES, ERROR_CODES } from '@blog/shared/src/constants/responseTypes';
+import { EntityServiceRegistry } from '../registry/entityRegistry';
 import { handleLoadPage } from './loadPageHandler';
 import { handleFetchEntities } from './fetchEntitiesHandler';
 import { handleCreateEntity } from './createEntityHandler';
@@ -24,6 +26,11 @@ interface Services {
 }
 
 export function setupEventHandlers(socket: Socket, services: Services): void {
+  // Create entity service registry
+  const entityServices: EntityServiceRegistry = {
+    userService: services.userService,
+    postService: services.postService
+  };
   // Main request handler
   socket.on('request', async (request: BaseRequest, callback) => {
     try {
@@ -36,10 +43,10 @@ export function setupEventHandlers(socket: Socket, services: Services): void {
       if (!request || !request.requestType || !request.requestParams) {
         logger.warn('Invalid request structure received', { request });
         callback({
-          responseType: 'error',
+          responseType: RESPONSE_TYPES.ERROR,
           responseParams: {
             error: {
-              code: 'INVALID_REQUEST',
+              code: ERROR_CODES.INVALID_REQUEST,
               message: 'Invalid request format'
             }
           }
@@ -52,7 +59,7 @@ export function setupEventHandlers(socket: Socket, services: Services): void {
         await handleLoadPage(socket, request, callback, services);
       }
       else if (isFetchEntitiesRequest(request)) {
-        await handleFetchEntities(socket, request, callback, services);
+        await handleFetchEntities(socket, request, callback, entityServices);
       }
       else if (isCreateEntityRequest(request)) {
         await handleCreateEntity(socket, request, callback, services);
@@ -72,10 +79,10 @@ export function setupEventHandlers(socket: Socket, services: Services): void {
           userId: socket.data.userId
         });
         callback({
-          responseType: 'error',
+          responseType: RESPONSE_TYPES.ERROR,
           responseParams: {
             error: {
-              code: 'INVALID_REQUEST_TYPE',
+              code: ERROR_CODES.INVALID_REQUEST_TYPE,
               message: `The requested operation is not supported.`
             }
           }
@@ -90,10 +97,10 @@ export function setupEventHandlers(socket: Socket, services: Services): void {
       });
 
       callback({
-        responseType: 'error',
+        responseType: RESPONSE_TYPES.ERROR,
         responseParams: {
           error: {
-            code: 'SERVER_ERROR',
+            code: ERROR_CODES.SERVER_ERROR,
             message: 'An unexpected error occurred. Please try again.'
           }
         }

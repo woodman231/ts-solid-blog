@@ -1,4 +1,5 @@
 import { FilterOptions, SortOptions } from '../types/pagination';
+import { EntityType } from '../constants/entityTypes';
 
 // Base request interface
 export interface BaseRequestParams {
@@ -21,7 +22,7 @@ export interface LoadPageRequest extends BaseRequest<LoadPageRequestParams> {
 
 // Fetch entities
 export interface FetchEntitiesRequestParams extends BaseRequestParams {
-  entityType: string;
+  entityType: EntityType;
   filterOptions?: FilterOptions;
   sort?: SortOptions;
   page?: number;

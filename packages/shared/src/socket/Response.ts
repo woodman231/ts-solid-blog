@@ -1,3 +1,5 @@
+import { RESPONSE_TYPES } from '../constants/responseTypes';
+
 // Base response interface
 export interface BaseResponseParams {
   [key: string]: any;
@@ -23,7 +25,7 @@ export interface EntityDataResponseParams<T = any> extends BaseResponseParams {
 }
 
 export interface EntityDataResponse<T = any> extends BaseResponse<EntityDataResponseParams<T>> {
-  responseType: 'setEntityData';
+  responseType: typeof RESPONSE_TYPES.SET_ENTITY_DATA;
 }
 
 // Error response
@@ -36,7 +38,7 @@ export interface ErrorResponseParams extends BaseResponseParams {
 }
 
 export interface ErrorResponse extends BaseResponse<ErrorResponseParams> {
-  responseType: 'error';
+  responseType: typeof RESPONSE_TYPES.ERROR;
 }
 
 // Success response
@@ -46,7 +48,7 @@ export interface SuccessResponseParams extends BaseResponseParams {
 }
 
 export interface SuccessResponse extends BaseResponse<SuccessResponseParams> {
-  responseType: 'success';
+  responseType: typeof RESPONSE_TYPES.SUCCESS;
 }
 
 // Search authors response
@@ -58,5 +60,5 @@ export interface SearchAuthorsResponseParams extends BaseResponseParams {
 }
 
 export interface SearchAuthorsResponse extends BaseResponse<SearchAuthorsResponseParams> {
-  responseType: 'searchAuthors';
+  responseType: typeof RESPONSE_TYPES.SEARCH_AUTHORS;
 }
