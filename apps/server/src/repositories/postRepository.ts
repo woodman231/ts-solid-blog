@@ -68,6 +68,16 @@ export class PostRepository extends BaseRepository<PostWithAuthor, PostWithAutho
         ]
       },
       defaultSort: { createdAt: 'desc' },
+      columnFieldMapping: {
+        'title': 'title',
+        'description': 'description',
+        'body': 'body',
+        'createdAt': 'createdAt',
+        'updatedAt': 'updatedAt',
+        'author.displayName': 'author.displayName',
+        'author.email': 'author.email',
+        'authorId': 'authorId',
+      },
     };
 
     super(prisma, config);

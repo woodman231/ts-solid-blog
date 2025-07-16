@@ -42,7 +42,13 @@ export class UserRepository extends BaseRepository<User, UserPayload, PrismaClie
           { field: 'email' }
         ]
       },
-      defaultSort: { createdAt: 'desc' }
+      defaultSort: { createdAt: 'desc' },
+      columnFieldMapping: {
+        'displayName': 'displayName',
+        'email': 'email',
+        'createdAt': 'createdAt',
+        'updatedAt': 'updatedAt',
+      },
     };
 
     super(prisma, config);

@@ -1,10 +1,13 @@
-import { FilterValue } from 'packages/shared/src/types/filters';
-import { FilterOptions } from 'packages/shared/src/types/pagination';
+import { FilterValue } from '@blog/shared/src/types/filters';
+import { FilterOptions } from '@blog/shared/src/types/pagination';
 
 type WhereCondition = { [key: string]: any };
 
 // Helper functions for parsing column filters
-export function parseColumnFilters(filters: FilterOptions): { where: WhereCondition; globalSearch?: string } {
+export function parseColumnFilters(
+    filters: FilterOptions,
+    columnFieldMapping?: Record<string, string>
+): { where: WhereCondition; globalSearch?: string } {
     const where: WhereCondition = {};
     let globalSearch: string | undefined;
 
@@ -20,7 +23,7 @@ export function parseColumnFilters(filters: FilterOptions): { where: WhereCondit
         // Handle structured FilterValue objects
         if (typeof value === 'object' && 'operator' in value && 'value' in value) {
             const filterValue = value as FilterValue;
-            const fieldPath = mapColumnToField(key);
+            const fieldPath = mapColumnToField(key, columnFieldMapping);
             if (!fieldPath) return;
 
             try {
@@ -64,9 +67,15 @@ function parseDate(value: any, isEndOfDay: boolean = false): Date {
     throw new Error(`Cannot parse date from value: ${value}`);
 }
 
-function mapColumnToField(columnId: string): string | null {
-    // Map client column IDs to database field paths
-    const mapping: Record<string, string> = {
+function mapColumnToField(columnId: string, columnFieldMapping?: Record<string, string>): string | null {
+    // Use provided mapping if available, otherwise fall back to default mapping
+    const mapping = columnFieldMapping || getDefaultColumnFieldMapping();
+    return mapping[columnId] || null;
+}
+
+function getDefaultColumnFieldMapping(): Record<string, string> {
+    // Default mapping for backward compatibility
+    return {
         'title': 'title',
         'description': 'description',
         'body': 'body',
@@ -74,12 +83,10 @@ function mapColumnToField(columnId: string): string | null {
         'updatedAt': 'updatedAt',
         'author.displayName': 'author.displayName',
         'author.email': 'author.email',
-        'authorId': 'authorId', // For filtering by author IDs
+        'authorId': 'authorId',
         'displayName': 'displayName',
         'email': 'email',
     };
-
-    return mapping[columnId] || null;
 }
 
 function buildWhereCondition(fieldPath: string, filter: FilterValue): WhereCondition | null {
