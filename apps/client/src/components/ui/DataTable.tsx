@@ -11,8 +11,9 @@ import { useSocketStore } from '../../lib/socket';
 import { FetchEntitiesRequest, EntityDataResponse } from '@blog/shared/src/index';
 import { LoadingSpinner } from './LoadingSpinner';
 import { MagnifyingGlassIcon } from '@heroicons/react/20/solid';
-import { ColumnFilter, ColumnFilterConfig, FilterValue } from './ColumnFilter';
+import { ColumnFilter, ColumnFilterConfig } from './ColumnFilter';
 import { EntityType } from '@blog/shared/src/index';
+import type { FilterValue } from "@blog/shared/types/filters";
 
 interface ColumnFilters {
     [columnId: string]: FilterValue;

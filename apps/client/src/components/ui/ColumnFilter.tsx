@@ -1,18 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { FunnelIcon, ChevronDownIcon } from '@heroicons/react/20/solid';
-
-// Filter types for different data types
-export type FilterType = 'text' | 'number' | 'date' | 'lookup' | 'boolean';
-
-export type TextFilterOperator = 'contains' | 'startsWith' | 'endsWith' | 'equals' | 'notEquals';
-export type NumberFilterOperator = 'equals' | 'notEquals' | 'gt' | 'lt' | 'gte' | 'lte' | 'between';
-export type DateFilterOperator = 'equals' | 'before' | 'after' | 'between';
-export type LookupFilterOperator = 'in' | 'notIn';
+import type { FilterType, FilterOperator, FilterValue } from "@blog/shared/types/filters";
 
 export interface ColumnFilterConfig {
     type: FilterType;
-    operators?: TextFilterOperator[] | NumberFilterOperator[] | DateFilterOperator[] | LookupFilterOperator[];
+    operators?: FilterOperator[];
     lookupOptions?: Array<{ value: string; label: string }>; // For static lookup columns
     lookupSearchable?: boolean; // Whether lookup supports search
     useDynamicLookup?: boolean; // Whether to use dynamic lookup instead of static options
@@ -23,12 +16,6 @@ export interface ColumnFilterConfig {
         error: any;
     }; // Hook function for dynamic lookup
     placeholder?: string;
-}
-
-export interface FilterValue {
-    operator: string;
-    value: any;
-    value2?: any; // For 'between' operations
 }
 
 interface ColumnFilterProps {
@@ -127,7 +114,7 @@ export function ColumnFilter({ config, value, onChange, header }: ColumnFilterPr
                     </label>
                     <select
                         value={tempOperator}
-                        onChange={(e) => setTempOperator(e.target.value)}
+                        onChange={(e) => setTempOperator(e.target.value as FilterOperator)}
                         className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     >
                         {operators.map((op) => (
@@ -345,7 +332,7 @@ function renderValueInput(
     }
 }
 
-function getDefaultOperators(type: FilterType): string[] {
+function getDefaultOperators(type: FilterType): FilterOperator[] {
     switch (type) {
         case 'text':
             return ['contains', 'startsWith', 'endsWith', 'equals', 'notEquals'];
@@ -362,7 +349,7 @@ function getDefaultOperators(type: FilterType): string[] {
     }
 }
 
-function getDefaultOperator(type: FilterType): string {
+function getDefaultOperator(type: FilterType): FilterOperator {
     switch (type) {
         case 'text':
             return 'contains';
