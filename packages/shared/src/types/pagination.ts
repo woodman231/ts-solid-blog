@@ -1,3 +1,5 @@
+import { FilterValue } from './filters';
+
 export interface PaginationOptions {
     page: number;
     limit: number;
@@ -8,7 +10,8 @@ export interface SortOptions {
 }
 
 export interface FilterOptions {
-    [key: string]: any;
+    globalSearch?: string;
+    [columnId: string]: FilterValue | string | undefined;
 }
 
 export interface QueryOptions {

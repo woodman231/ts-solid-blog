@@ -1,45 +1,36 @@
+import { FilterValue } from 'packages/shared/src/types/filters';
+import { FilterOptions } from 'packages/shared/src/types/pagination';
+
+type WhereCondition = { [key: string]: any };
+
 // Helper functions for parsing column filters
-export function parseColumnFilters(filters: Record<string, any>): { where: any; globalSearch?: string } {
-    const where: any = {};
+export function parseColumnFilters(filters: FilterOptions): { where: WhereCondition; globalSearch?: string } {
+    const where: WhereCondition = {};
     let globalSearch: string | undefined;
 
     Object.entries(filters).forEach(([key, value]) => {
         if (value === undefined || value === null) return;
 
         // Handle global search
-        if (key === 'globalSearch') {
-            globalSearch = value as string;
+        if (key === 'globalSearch' && typeof value === 'string') {
+            globalSearch = value;
             return;
         }
 
-        // Parse column filter format: columnId_operator or columnId_operator_2
-        const parts = key.split('_');
-        if (parts.length < 2) return;
+        // Handle structured FilterValue objects
+        if (typeof value === 'object' && 'operator' in value && 'value' in value) {
+            const filterValue = value as FilterValue;
+            const fieldPath = mapColumnToField(key);
+            if (!fieldPath) return;
 
-        const columnId = parts[0];
-        const operator = parts[1];
-        const isSecondValue = parts[2] === '2';
-
-        // Map column IDs to Prisma field paths
-        const fieldPath = mapColumnToField(columnId);
-        if (!fieldPath) return;
-
-        try {
-            // Build the where condition based on operator
-            const condition = buildWhereCondition(fieldPath, operator, value, isSecondValue);
-            if (condition) {
-                // Merge conditions for the same field (e.g., between operations)
-                const existingCondition = getNestedValue(where, fieldPath);
-                if (existingCondition && typeof existingCondition === 'object') {
-                    setNestedValue(where, fieldPath, { ...existingCondition, ...condition });
-                } else {
-                    setNestedValue(where, fieldPath, condition);
+            try {
+                const condition = buildWhereCondition(fieldPath, filterValue);
+                if (condition) {
+                    setNestedValue(where, fieldPath, condition[fieldPath]);
                 }
+            } catch (error: any) {
+                console.error(`Error building where condition for ${key}:`, error.message);
             }
-        } catch (error: any) {
-            // Log the error but don't fail the entire query
-            console.warn(`Invalid filter value for ${columnId} with operator ${operator}:`, error.message);
-            // Skip this filter and continue with others
         }
     });
 
@@ -91,105 +82,79 @@ function mapColumnToField(columnId: string): string | null {
     return mapping[columnId] || null;
 }
 
-function buildWhereCondition(fieldPath: string, operator: string, value: any, isSecondValue: boolean): any {
+function buildWhereCondition(fieldPath: string, filter: FilterValue): WhereCondition | null {
+    const { operator, value, value2 } = filter;
+
+    if (value === '' || value === null || value === undefined) {
+        return null;
+    }
+
+    let condition: any;
+
     switch (operator) {
         case 'contains':
-            return { contains: value, mode: 'insensitive' };
-
+            condition = { contains: value, mode: 'insensitive' };
+            break;
         case 'startsWith':
-            return { startsWith: value, mode: 'insensitive' };
-
+            condition = { startsWith: value, mode: 'insensitive' };
+            break;
         case 'endsWith':
-            return { endsWith: value, mode: 'insensitive' };
-
+            condition = { endsWith: value, mode: 'insensitive' };
+            break;
         case 'equals':
-            // Handle date fields specially - for dates, "equals" means the entire day
-            if (fieldPath === 'createdAt' || fieldPath === 'updatedAt') {
-                const startOfDay = parseDate(value, false);
-                const endOfDay = parseDate(value, true);
-                return {
-                    gte: startOfDay,
-                    lte: endOfDay
-                };
-            }
-            return { equals: value };
-
-        case 'notEquals':
-            if (fieldPath === 'createdAt' || fieldPath === 'updatedAt') {
-                const startOfDay = parseDate(value, false);
-                const endOfDay = parseDate(value, true);
-                return {
-                    NOT: {
-                        AND: [
-                            { gte: startOfDay },
-                            { lte: endOfDay }
-                        ]
-                    }
-                };
-            }
-            return { not: value };
-
-        case 'gt':
-            if (fieldPath === 'createdAt' || fieldPath === 'updatedAt') {
-                // Greater than date means after the end of that day
-                return { gt: parseDate(value, true) };
-            }
-            return { gt: value };
-
-        case 'lt':
-            if (fieldPath === 'createdAt' || fieldPath === 'updatedAt') {
-                // Less than date means before the start of that day
-                return { lt: parseDate(value, false) };
-            }
-            return { lt: value };
-
-        case 'gte':
-            if (fieldPath === 'createdAt' || fieldPath === 'updatedAt') {
-                // Greater than or equal to date means from start of that day
-                return { gte: parseDate(value, false) };
-            }
-            return { gte: value };
-
-        case 'lte':
-            if (fieldPath === 'createdAt' || fieldPath === 'updatedAt') {
-                // Less than or equal to date means until end of that day
-                return { lte: parseDate(value, true) };
-            }
-            return { lte: value };
-
-        case 'between':
-            if (fieldPath === 'createdAt' || fieldPath === 'updatedAt') {
-                if (isSecondValue) {
-                    // End date - use end of day
-                    return { lte: parseDate(value, true) };
-                } else {
-                    // Start date - use start of day
-                    return { gte: parseDate(value, false) };
-                }
-            }
-            if (isSecondValue) {
-                return { lte: value }; // This will be merged with gte from first value
+            if (filter.operator === 'equals' && ['date', 'datetime'].includes(getFieldType(fieldPath))) {
+                const startDate = parseDate(value);
+                const endDate = new Date(startDate);
+                endDate.setDate(startDate.getDate() + 1);
+                condition = { gte: startDate, lt: endDate };
             } else {
-                return { gte: value };
+                condition = { equals: value };
             }
-
+            break;
+        case 'notEquals':
+            condition = { not: value };
+            break;
+        case 'gt':
+            condition = { gt: value };
+            break;
+        case 'lt':
+            condition = { lt: value };
+            break;
+        case 'gte':
+            condition = { gte: parseDate(value) };
+            break;
+        case 'lte':
+            condition = { lte: parseDate(value, true) };
+            break;
+        case 'between':
+            if (value2 !== undefined) {
+                condition = { gte: parseDate(value), lte: parseDate(value2, true) };
+            }
+            break;
         case 'before':
-            // Before date means before the start of that day
-            return { lt: parseDate(value, false) };
-
+            condition = { lt: parseDate(value) };
+            break;
         case 'after':
-            // After date means after the end of that day
-            return { gt: parseDate(value, true) };
-
+            condition = { gt: parseDate(value, true) };
+            break;
         case 'in':
-            return { in: Array.isArray(value) ? value : [value] };
-
+            condition = { in: Array.isArray(value) ? value : [value] };
+            break;
         case 'notIn':
-            return { notIn: Array.isArray(value) ? value : [value] };
-
+            condition = { notIn: Array.isArray(value) ? value : [value] };
+            break;
         default:
             return null;
     }
+
+    const result: WhereCondition = {};
+    setNestedValue(result, fieldPath, condition);
+    return result;
+}
+
+function getFieldType(fieldPath: string): 'date' | 'datetime' | 'string' | 'number' | 'boolean' {
+    if (fieldPath.toLowerCase().includes('at')) return 'datetime'; // createdAt, updatedAt
+    return 'string';
 }
 
 function getNestedValue(obj: any, path: string): any {
@@ -200,8 +165,16 @@ function setNestedValue(obj: any, path: string, value: any): void {
     const keys = path.split('.');
     const lastKey = keys.pop()!;
     const target = keys.reduce((current, key) => {
-        if (!current[key]) current[key] = {};
+        if (!current[key]) {
+            current[key] = {};
+        }
         return current[key];
     }, obj);
-    target[lastKey] = value;
+
+    // Merge conditions for the same field path
+    if (target[lastKey] && typeof target[lastKey] === 'object' && !Array.isArray(target[lastKey])) {
+        target[lastKey] = { ...target[lastKey], ...value };
+    } else {
+        target[lastKey] = value;
+    }
 }

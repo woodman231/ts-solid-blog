@@ -182,7 +182,9 @@ export abstract class BaseRepository<TShared, TPrisma, TDelegate extends PrismaM
 
         // Handle filtering
         if (options?.filter) {
+            console.log('Raw Filter Options:', JSON.stringify(options.filter, null, 2));
             const parsedFilters = parseColumnFilters(options.filter);
+            console.log('Parsed Filters:', JSON.stringify(parsedFilters, null, 2));
             where = parsedFilters.where;
             globalSearch = parsedFilters.globalSearch;
 

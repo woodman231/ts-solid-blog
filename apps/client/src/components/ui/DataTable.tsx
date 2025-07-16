@@ -92,10 +92,7 @@ export function DataTable<T>({
     // Add column filters
     Object.entries(columnFilters).forEach(([columnId, filter]) => {
         if (filter && filter.value !== '') {
-            serverFilters[`${columnId}_${filter.operator}`] = filter.value;
-            if (filter.value2 !== undefined) {
-                serverFilters[`${columnId}_${filter.operator}_2`] = filter.value2;
-            }
+            serverFilters[columnId] = filter;
         }
     });
 
