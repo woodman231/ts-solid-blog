@@ -42,13 +42,13 @@ export function useAuthorSearch() {
         enabled: true, // Always enabled, will return all authors if no query
     });
 
-    const searchAuthors = useCallback((query: string) => {
+    const searchData = useCallback((query: string) => {
         setSearchQuery(query);
     }, []);
 
     return {
-        authors,
-        searchAuthors,
+        data: authors,
+        searchData,
         isLoading,
         error,
     };

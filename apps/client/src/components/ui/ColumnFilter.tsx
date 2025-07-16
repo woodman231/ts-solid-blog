@@ -3,15 +3,15 @@ import { createPortal } from 'react-dom';
 import { FunnelIcon, ChevronDownIcon } from '@heroicons/react/20/solid';
 import type { FilterType, FilterOperator, FilterValue } from "@blog/shared/types/filters";
 
-export interface ColumnFilterConfig {
+export interface ColumnFilterConfig<T = any> {
     type: FilterType;
     operators?: FilterOperator[];
     lookupOptions?: Array<{ value: string; label: string }>; // For static lookup columns
     lookupSearchable?: boolean; // Whether lookup supports search
     useDynamicLookup?: boolean; // Whether to use dynamic lookup instead of static options
     dynamicLookupHook?: () => {
-        authors: Array<{ id: string; displayName: string }>;
-        searchAuthors: (query: string) => void;
+        data: Array<T>;
+        searchData: (query: string) => void;
         isLoading: boolean;
         error: any;
     }; // Hook function for dynamic lookup
@@ -387,24 +387,24 @@ function getOperatorLabel(operator: string): string {
 }
 
 // Dynamic lookup selector component
-interface DynamicLookupSelectorProps {
+interface DynamicLookupSelectorProps<T = any> {
     value: any;
     setValue: (value: any) => void;
     dynamicLookupHook: () => {
-        authors: Array<{ id: string; displayName: string }>;
-        searchAuthors: (query: string) => void;
+        data: Array<T>;
+        searchData: (query: string) => void;
         isLoading: boolean;
         error: any;
     };
 }
 
-function DynamicLookupSelector({ value, setValue, dynamicLookupHook }: DynamicLookupSelectorProps) {
+function DynamicLookupSelector<T extends { id: string; displayName: string }>({ value, setValue, dynamicLookupHook }: DynamicLookupSelectorProps<T>) {
     const [searchQuery, setSearchQuery] = useState('');
-    const { authors, searchAuthors, isLoading } = dynamicLookupHook();
+    const { data, searchData, isLoading } = dynamicLookupHook();
 
     useEffect(() => {
-        searchAuthors(searchQuery);
-    }, [searchQuery, searchAuthors]);
+        searchData(searchQuery);
+    }, [searchQuery, searchData]);
 
     return (
         <div>
@@ -413,7 +413,7 @@ function DynamicLookupSelector({ value, setValue, dynamicLookupHook }: DynamicLo
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search authors..."
+                placeholder="Search..."
                 className="w-full px-2 py-1 text-sm border border-gray-300 rounded mb-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             />
 
@@ -422,25 +422,25 @@ function DynamicLookupSelector({ value, setValue, dynamicLookupHook }: DynamicLo
                 {isLoading && (
                     <div className="px-2 py-2 text-sm text-gray-500">Loading...</div>
                 )}
-                {!isLoading && authors.length === 0 && (
-                    <div className="px-2 py-2 text-sm text-gray-500">No authors found</div>
+                {!isLoading && data.length === 0 && (
+                    <div className="px-2 py-2 text-sm text-gray-500">No results found</div>
                 )}
-                {!isLoading && authors.map((author) => (
-                    <label key={author.id} className="flex items-center px-2 py-1 hover:bg-gray-50">
+                {!isLoading && data.map((item) => (
+                    <label key={item.id} className="flex items-center px-2 py-1 hover:bg-gray-50">
                         <input
                             type="checkbox"
-                            checked={Array.isArray(value) && value.includes(author.id)}
+                            checked={Array.isArray(value) && value.includes(item.id)}
                             onChange={(e) => {
                                 const currentValues = Array.isArray(value) ? value : [];
                                 if (e.target.checked) {
-                                    setValue([...currentValues, author.id]);
+                                    setValue([...currentValues, item.id]);
                                 } else {
-                                    setValue(currentValues.filter((v: any) => v !== author.id));
+                                    setValue(currentValues.filter((v: any) => v !== item.id));
                                 }
                             }}
                             className="mr-2"
                         />
-                        <span className="text-sm">{author.displayName}</span>
+                        <span className="text-sm">{item.displayName}</span>
                     </label>
                 ))}
             </div>
