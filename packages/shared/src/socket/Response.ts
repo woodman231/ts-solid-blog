@@ -21,7 +21,6 @@ export interface EntityDataResponseParams<T = any> extends BaseResponseParams {
     page: number;
     limit: number;
     totalPages: number;
-    currentUserId?: string; // Optional current user ID
   };
 }
 

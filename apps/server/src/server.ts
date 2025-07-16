@@ -1,5 +1,6 @@
 import express from 'express';
 import http from 'http';
+import cors from 'cors';
 import { Server as SocketServer } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
@@ -13,11 +14,23 @@ import { PostRepository } from './repositories/postRepository';
 import { UserService } from './services/userService';
 import { PostService } from './services/postService';
 import { AuthService } from './services/authService';
+import { IAuthService } from './core/interfaces/authService';
 
 export async function createServer() {
   // Create Express app and HTTP server
   const app = express();
   const httpServer = http.createServer(app);
+
+  // Set up CORS middleware for all routes
+  app.use(cors({
+    origin: '*', // Allow any origin for now
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: false // Set to true if you need cookies/auth headers
+  }));
+
+  // Parse JSON bodies
+  app.use(express.json());
 
   // Set up Redis clients
   const pubClient = createClient({ url: process.env.REDIS_URL });
@@ -59,6 +72,33 @@ export async function createServer() {
 
   // Set up socket handlers
   setupSocketHandlers(io, container);
+
+  // API endpoint to get current user's database info
+  app.get('/api/user/me', async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'No token provided' });
+      }
+
+      const token = authHeader.substring(7);
+      const authService = container.get('authService') as IAuthService;
+      const user = await authService.getUserFromToken(token);
+
+      if (!user) {
+        return res.status(401).json({ error: 'Invalid token or user not found' });
+      }
+
+      res.json({
+        id: user.id,
+        displayName: user.displayName,
+        email: user.email
+      });
+    } catch (error) {
+      logger.error('Error in /api/user/me:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
 
   // Health check endpoint
   app.get('/health', (_, res) => res.status(200).send('OK'));

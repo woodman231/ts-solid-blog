@@ -3,12 +3,13 @@ import { Link } from '@tanstack/react-router';
 import { PostWithAuthor } from '@blog/shared/src/models/Post';
 import { TileView, TileActionConfig, TileRenderer, TileFilterConfig } from '../../components/ui/TileView';
 import { DeletePostDialog } from '../../components/posts/DeletePostDialog';
+import { useAuthContext } from '../../contexts/AuthContext';
 import { ENTITY_TYPES } from '@blog/shared/src/index';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 export function PostsTileViewPage() {
     const [postToDelete, setPostToDelete] = useState<string | null>(null);
-    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const { currentUserId } = useAuthContext();
 
     // Configure filters for tile view
     const filterConfigs: TileFilterConfig[] = [
@@ -138,12 +139,6 @@ export function PostsTileViewPage() {
                 refetchOnMount="always"
                 emptyStateMessage="No posts found. Create your first post to get started!"
                 tileContainerClassName="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
-                onDataChange={(data) => {
-                    // Extract currentUserId from the response
-                    if (data && data.data?.entities?.currentUserId) {
-                        setCurrentUserId(data.data.entities.currentUserId);
-                    }
-                }}
             />
 
             {/* Delete confirmation dialog */}

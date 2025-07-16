@@ -5,11 +5,12 @@ import { PostWithAuthor } from '@blog/shared/src/models/Post';
 import { DataTable, ColumnFilterConfig } from '../../components/ui/DataTable';
 import { DeletePostDialog } from '../../components/posts/DeletePostDialog';
 import { useAuthorSearch } from '../../hooks/useAuthorSearch';
+import { useAuthContext } from '../../contexts/AuthContext';
 import { ENTITY_TYPES } from '@blog/shared/src/index';
 
 export function PostsListPage() {
     const [postToDelete, setPostToDelete] = useState<string | null>(null);
-    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const { currentUserId } = useAuthContext();
 
     // Configure column filters
     const columnFilterConfigs: Record<string, ColumnFilterConfig> = {
@@ -152,12 +153,6 @@ export function PostsListPage() {
                 defaultPageSize={20}
                 staleTime={1000 * 30} // 30 seconds
                 refetchOnMount="always"
-                onDataChange={(data) => {
-                    // Extract currentUserId from the response
-                    if (data && data.data?.entities?.currentUserId) {
-                        setCurrentUserId(data.data.entities.currentUserId);
-                    }
-                }}
             />
 
             {/* Delete confirmation dialog */}

@@ -95,8 +95,6 @@ export async function handleFetchEntities(
           page: result.page,
           limit: result.limit,
           totalPages: result.totalPages,
-          // Include current user ID in all responses
-          currentUserId: userId,
         }
       }
     });
