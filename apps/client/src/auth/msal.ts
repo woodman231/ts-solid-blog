@@ -43,7 +43,7 @@ const msalConfig: Configuration = {
 
 // Login scopes
 export const loginRequest = {
-    scopes: ['openid', 'profile', 'email', 'https://opsystempilot.onmicrosoft.com/4a499293-0274-4731-a46c-3f4090401c08/access_as_user'],
+    scopes: ['openid', 'profile', 'email', `https://${import.meta.env.VITE_ADB2C_TENANT_NAME}/${import.meta.env.VITE_ADB2C_SERVER_CLIENT_ID}/access_as_user`],
 };
 
 // MSAL instance
@@ -117,7 +117,7 @@ export const getAccessToken = async (): Promise<string | null> => {
 
     try {
         const silentRequest = {
-            scopes: ['https://opsystempilot.onmicrosoft.com/4a499293-0274-4731-a46c-3f4090401c08/access_as_user'],
+            scopes: [`https://${import.meta.env.VITE_ADB2C_TENANT_NAME}/${import.meta.env.VITE_ADB2C_SERVER_CLIENT_ID}/access_as_user`],
             account,
             // Force refresh if token is close to expiry or has timing issues
             forceRefresh: false,
@@ -161,7 +161,7 @@ export const getAccessToken = async (): Promise<string | null> => {
         // Try interactive token acquisition if silent fails
         try {
             const interactiveRequest = {
-                scopes: ['https://opsystempilot.onmicrosoft.com/4a499293-0274-4731-a46c-3f4090401c08/access_as_user'],
+                scopes: [`https://${import.meta.env.VITE_ADB2C_TENANT_NAME}/${import.meta.env.VITE_ADB2C_SERVER_CLIENT_ID}/access_as_user`],
             };
 
             const response = await msalInstance.acquireTokenPopup(interactiveRequest);
@@ -179,7 +179,7 @@ export const getAccessTokenForAccount = async (account: AccountInfo): Promise<st
 
     try {
         const silentRequest = {
-            scopes: ['https://opsystempilot.onmicrosoft.com/4a499293-0274-4731-a46c-3f4090401c08/access_as_user'],
+            scopes: [`https://${import.meta.env.VITE_ADB2C_TENANT_NAME}/${import.meta.env.VITE_ADB2C_SERVER_CLIENT_ID}/access_as_user`],
             account,
         };
 
@@ -191,7 +191,7 @@ export const getAccessTokenForAccount = async (account: AccountInfo): Promise<st
         // Try interactive token acquisition if silent fails
         try {
             const interactiveRequest = {
-                scopes: ['https://opsystempilot.onmicrosoft.com/4a499293-0274-4731-a46c-3f4090401c08/access_as_user'],
+                scopes: [`https://${import.meta.env.VITE_ADB2C_TENANT_NAME}/${import.meta.env.VITE_ADB2C_SERVER_CLIENT_ID}/access_as_user`],
             };
 
             const response = await msalInstance.acquireTokenPopup(interactiveRequest);
