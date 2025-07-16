@@ -27,6 +27,7 @@ interface DataTableProps<T> {
     globalFilterPlaceholder?: string;
     enableColumnFilters?: boolean;
     columnFilterConfigs?: Record<string, ColumnFilterConfig>; // Config for each filterable column
+    columnSortMapping?: Record<string, string>; // Map column IDs to server field names for sorting
     title: string;
     createButton?: React.ReactNode;
     defaultPageSize?: number;
@@ -43,6 +44,7 @@ export function DataTable<T>({
     globalFilterPlaceholder = 'Search...',
     enableColumnFilters = false,
     columnFilterConfigs = {},
+    columnSortMapping = {},
     title,
     createButton,
     defaultPageSize = 20,
@@ -69,13 +71,8 @@ export function DataTable<T>({
 
     // Convert sorting state to server format with column mapping
     const serverSort = sorting.reduce((acc, sort) => {
-        // Map client column IDs to server field names
-        let serverFieldName = sort.id;
-
-        // Handle nested field mapping (like author.displayName)
-        if (sort.id === 'author.displayName') {
-            serverFieldName = 'author.displayName';
-        }
+        // Map client column IDs to server field names using provided mapping
+        const serverFieldName = columnSortMapping[sort.id] || sort.id;
 
         acc[serverFieldName] = sort.desc ? 'desc' : 'asc';
         return acc;

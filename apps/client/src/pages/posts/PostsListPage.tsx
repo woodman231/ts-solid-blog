@@ -36,6 +36,15 @@ export function PostsListPage() {
         },
     };
 
+    // Configure column sort mapping
+    const columnSortMapping: Record<string, string> = {
+        'title': 'title',
+        'description': 'description',
+        'authorId': 'author.displayName', // Map authorId column to nested author.displayName for sorting
+        'createdAt': 'createdAt',
+        'updatedAt': 'updatedAt',
+    };
+
     // Define columns for the posts table
     const columns: ColumnDef<PostWithAuthor>[] = [
         {
@@ -130,6 +139,7 @@ export function PostsListPage() {
                 globalFilterPlaceholder="Search posts by title, description, content, or author..."
                 enableColumnFilters={true}
                 columnFilterConfigs={columnFilterConfigs}
+                columnSortMapping={columnSortMapping}
                 title="Posts"
                 createButton={
                     <Link

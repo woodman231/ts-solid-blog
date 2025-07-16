@@ -22,6 +22,15 @@ export function UsersListPage() {
             operators: ['equals', 'before', 'after', 'between'],
         },
     };
+
+    // Configure column sort mapping
+    const columnSortMapping: Record<string, string> = {
+        'displayName': 'displayName',
+        'email': 'email',
+        'createdAt': 'createdAt',
+        'updatedAt': 'updatedAt',
+    };
+
     // Define columns for the users table
     const columns: ColumnDef<User>[] = [
         {
@@ -62,6 +71,7 @@ export function UsersListPage() {
             globalFilterPlaceholder="Search users by name or email..."
             enableColumnFilters={true}
             columnFilterConfigs={columnFilterConfigs}
+            columnSortMapping={columnSortMapping}
             title="Users"
             defaultPageSize={20}
             staleTime={1000 * 60} // 1 minute - users change less frequently
