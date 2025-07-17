@@ -1,11 +1,30 @@
 import { Link } from '@tanstack/react-router';
 import { User } from '@blog/shared/src/models/User';
-import { TileView, TileRenderer } from '../../components/ui/TileView';
+import { TileView, TileRenderer, TileSortConfig } from '../../components/ui/TileView';
 import { ColumnFilterConfig } from '../../components/ui/ColumnFilter';
 import { ENTITY_TYPES } from '@blog/shared/src/index';
 import { UserIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 
 export function UsersTileViewPage() {
+    // Configure sorting options
+    const sortConfigs: TileSortConfig[] = [
+        {
+            key: 'createdAt',
+            label: 'Join Date',
+            serverField: 'createdAt',
+        },
+        {
+            key: 'displayName',
+            label: 'Name',
+            serverField: 'displayName',
+        },
+        {
+            key: 'email',
+            label: 'Email',
+            serverField: 'email',
+        },
+    ];
+
     // Configure filters for user tiles
     const filterConfigs: Record<string, ColumnFilterConfig> = {
         role: {
@@ -92,6 +111,8 @@ export function UsersTileViewPage() {
             globalFilterPlaceholder="Search users by name or email..."
             enableFilters={true}
             filterConfigs={filterConfigs}
+            enableSorting={true}
+            sortConfigs={sortConfigs}
             title="Users"
             defaultPageSize={15}
             staleTime={1000 * 60} // 1 minute

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Link } from '@tanstack/react-router';
 import { PostWithAuthor } from '@blog/shared/src/models/Post';
-import { TileView, TileActionConfig, TileRenderer } from '../../components/ui/TileView';
+import { TileView, TileActionConfig, TileRenderer, TileSortConfig } from '../../components/ui/TileView';
 import { ColumnFilterConfig } from '../../components/ui/ColumnFilter';
 import { DeletePostDialog } from '../../components/posts/DeletePostDialog';
 import { useAuthContext } from '../../contexts/AuthContext';
@@ -47,6 +47,30 @@ export function PostsTileViewPage() {
             label: 'Created',
         },
     };
+
+    // Configure sorting options
+    const sortConfigs: TileSortConfig[] = [
+        {
+            key: 'createdAt',
+            label: 'Date Created',
+            serverField: 'createdAt',
+        },
+        {
+            key: 'updatedAt',
+            label: 'Date Updated',
+            serverField: 'updatedAt',
+        },
+        {
+            key: 'title',
+            label: 'Title',
+            serverField: 'title',
+        },
+        {
+            key: 'author',
+            label: 'Author',
+            serverField: 'author.displayName',
+        },
+    ];
 
     // Configure actions for tiles
     const actions: TileActionConfig[] = [
@@ -141,6 +165,8 @@ export function PostsTileViewPage() {
                 globalFilterPlaceholder="Search posts by title, description, content, or author..."
                 enableFilters={true}
                 filterConfigs={filterConfigs}
+                enableSorting={true}
+                sortConfigs={sortConfigs}
                 title="Posts"
                 createButton={
                     <Link

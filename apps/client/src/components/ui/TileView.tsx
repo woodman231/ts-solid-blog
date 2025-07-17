@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { MagnifyingGlassIcon, FunnelIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, FunnelIcon, ChevronDownIcon, ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/outline';
 import { useSocketStore } from '../../lib/socket';
 import { FetchEntitiesRequest, EntityDataResponse } from '@blog/shared/src/index';
 import { EntityType } from '@blog/shared/src/index';
@@ -19,6 +19,12 @@ export interface TileActionConfig {
 // Tile renderer function type
 export type TileRenderer<T> = (item: T, actions?: React.ReactNode) => React.ReactNode;
 
+export interface TileSortConfig {
+    key: string;
+    label: string;
+    serverField?: string; // Optional server field mapping (like columnSortMapping in DataTable)
+}
+
 interface TileViewProps<T> {
     entityType: EntityType;
     tileRenderer: TileRenderer<T>;
@@ -27,6 +33,8 @@ interface TileViewProps<T> {
     globalFilterPlaceholder?: string;
     enableFilters?: boolean;
     filterConfigs?: Record<string, ColumnFilterConfig>; // Changed from TileFilterConfig[] to Record<string, ColumnFilterConfig>
+    enableSorting?: boolean; // New prop to enable/disable sorting
+    sortConfigs?: TileSortConfig[]; // Available sort options
     title: string;
     createButton?: React.ReactNode;
     actions?: TileActionConfig[];
@@ -47,6 +55,8 @@ export function TileView<T>({
     globalFilterPlaceholder = 'Search...',
     enableFilters = false,
     filterConfigs = {},
+    enableSorting = true,
+    sortConfigs = [],
     title,
     createButton,
     actions = [],
@@ -63,6 +73,7 @@ export function TileView<T>({
     const [globalFilter, setGlobalFilter] = useState('');
     const [debouncedGlobalFilter, setDebouncedGlobalFilter] = useState('');
     const [columnFilters, setColumnFilters] = useState<Record<string, FilterValue>>({});
+    const [sorting, setSorting] = useState<Record<string, 'asc' | 'desc'>>(initialSorting);
     const [currentPage, setCurrentPage] = useState(0);
     const [pageSize, setPageSize] = useState(defaultPageSize);
     const [showFilters, setShowFilters] = useState(false);
@@ -87,43 +98,6 @@ export function TileView<T>({
         }, 300);
         return () => clearTimeout(timer);
     }, [globalFilter]);
-
-    // Build server filters
-    const serverFilters: Record<string, any> = {};
-
-    // Add global search if enabled
-    if (debouncedGlobalFilter && enableGlobalFilter) {
-        serverFilters.globalSearch = debouncedGlobalFilter;
-    }
-
-    // Add column filters
-    Object.entries(columnFilters).forEach(([columnId, filter]) => {
-        if (filter && filter.value !== '') {
-            serverFilters[columnId] = filter;
-        }
-    });
-
-    // Fetch data with server-side pagination, sorting, and filtering
-    const { data, isLoading, error, refetch } = useQuery({
-        queryKey: [entityType, currentPage, pageSize, initialSorting, serverFilters],
-        queryFn: async () => {
-            const request: FetchEntitiesRequest = {
-                requestType: 'fetchEntities',
-                requestParams: {
-                    entityType,
-                    sort: initialSorting,
-                    page: currentPage,
-                    limit: pageSize,
-                    filterOptions: Object.keys(serverFilters).length > 0 ? serverFilters : undefined,
-                },
-            };
-
-            const response = await sendRequest<FetchEntitiesRequest, EntityDataResponse>(request);
-            return response.responseParams.entities;
-        },
-        staleTime,
-        refetchOnMount,
-    });
 
     // Handle global filter changes
     const handleGlobalFilterChange = useCallback((value: string) => {
@@ -166,6 +140,65 @@ export function TileView<T>({
 
         setCurrentPage(0);
     }, [filterConfigs]);
+
+    // Handle sorting changes
+    const handleSortingChange = useCallback((columnId: string) => {
+        setSorting(prev => {
+            const currentDirection = prev[columnId];
+            const newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+            return { [columnId]: newDirection };
+        });
+        setCurrentPage(0); // Reset to first page when sorting changes
+    }, []);
+
+    // Get current sort info for display
+    const currentSortKey = Object.keys(sorting)[0];
+    const currentSortDirection = sorting[currentSortKey];
+
+    // Build server filters
+    const serverFilters: Record<string, any> = {};
+
+    // Add global search if enabled
+    if (debouncedGlobalFilter && enableGlobalFilter) {
+        serverFilters.globalSearch = debouncedGlobalFilter;
+    }
+
+    // Add column filters
+    Object.entries(columnFilters).forEach(([columnId, filter]) => {
+        if (filter && filter.value !== '') {
+            serverFilters[columnId] = filter;
+        }
+    });
+
+    // Convert sorting to server format with field mapping
+    const serverSort = Object.entries(sorting).reduce((acc, [key, direction]) => {
+        const sortConfig = sortConfigs.find(config => config.key === key);
+        const serverField = sortConfig?.serverField || key;
+        acc[serverField] = direction;
+        return acc;
+    }, {} as Record<string, 'asc' | 'desc'>);
+
+    // Fetch data with server-side pagination, sorting, and filtering
+    const { data, isLoading, error, refetch } = useQuery({
+        queryKey: [entityType, currentPage, pageSize, serverSort, serverFilters],
+        queryFn: async () => {
+            const request: FetchEntitiesRequest = {
+                requestType: 'fetchEntities',
+                requestParams: {
+                    entityType,
+                    sort: serverSort,
+                    page: currentPage,
+                    limit: pageSize,
+                    filterOptions: Object.keys(serverFilters).length > 0 ? serverFilters : undefined,
+                },
+            };
+
+            const response = await sendRequest<FetchEntitiesRequest, EntityDataResponse>(request);
+            return response.responseParams.entities;
+        },
+        staleTime,
+        refetchOnMount,
+    });
 
     // Extract data
     const tileData = (data?.data?.[entityType] || []) as T[];
@@ -339,6 +372,42 @@ export function TileView<T>({
                                 className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                             />
                         </div>
+
+                        {/* Sort dropdown */}
+                        {enableSorting && sortConfigs.length > 0 && (
+                            <div className="relative">
+                                <select
+                                    value={currentSortKey}
+                                    onChange={(e) => handleSortingChange(e.target.value)}
+                                    className="appearance-none bg-white border border-gray-300 rounded-md px-3 py-2 pr-8 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                >
+                                    {sortConfigs.map((config) => (
+                                        <option key={config.key} value={config.key}>
+                                            Sort by {config.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                                    <ChevronDownIcon className="h-4 w-4 text-gray-400" />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Sort direction toggle */}
+                        {enableSorting && sortConfigs.length > 0 && (
+                            <button
+                                onClick={() => handleSortingChange(currentSortKey)}
+                                className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                title={`Sort ${currentSortDirection === 'asc' ? 'ascending' : 'descending'}`}
+                            >
+                                {currentSortDirection === 'asc' ? (
+                                    <ArrowUpIcon className="h-4 w-4" />
+                                ) : (
+                                    <ArrowDownIcon className="h-4 w-4" />
+                                )}
+                                {currentSortDirection === 'asc' ? 'Asc' : 'Desc'}
+                            </button>
+                        )}
 
                         {/* Filter toggle button */}
                         {enableFilters && Object.keys(filterConfigs).length > 0 && (
