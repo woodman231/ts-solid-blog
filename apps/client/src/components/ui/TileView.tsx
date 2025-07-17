@@ -4,6 +4,8 @@ import { MagnifyingGlassIcon, FunnelIcon, ChevronDownIcon } from '@heroicons/rea
 import { useSocketStore } from '../../lib/socket';
 import { FetchEntitiesRequest, EntityDataResponse } from '@blog/shared/src/index';
 import { EntityType } from '@blog/shared/src/index';
+import { ColumnFilter, ColumnFilterConfig } from './ColumnFilter';
+import type { FilterValue } from "@blog/shared/types/filters";
 
 // Action button configuration
 export interface TileActionConfig {
@@ -17,15 +19,6 @@ export interface TileActionConfig {
 // Tile renderer function type
 export type TileRenderer<T> = (item: T, actions?: React.ReactNode) => React.ReactNode;
 
-// Filter configuration (simplified for tile view)
-export interface TileFilterConfig {
-    key: string;
-    label: string;
-    type: 'text' | 'select';
-    options?: Array<{ value: string; label: string }>; // For select type
-    placeholder?: string;
-}
-
 interface TileViewProps<T> {
     entityType: EntityType;
     tileRenderer: TileRenderer<T>;
@@ -33,7 +26,7 @@ interface TileViewProps<T> {
     enableGlobalFilter?: boolean;
     globalFilterPlaceholder?: string;
     enableFilters?: boolean;
-    filterConfigs?: TileFilterConfig[];
+    filterConfigs?: Record<string, ColumnFilterConfig>; // Changed from TileFilterConfig[] to Record<string, ColumnFilterConfig>
     title: string;
     createButton?: React.ReactNode;
     actions?: TileActionConfig[];
@@ -53,7 +46,7 @@ export function TileView<T>({
     enableGlobalFilter = true,
     globalFilterPlaceholder = 'Search...',
     enableFilters = false,
-    filterConfigs = [],
+    filterConfigs = {},
     title,
     createButton,
     actions = [],
@@ -69,10 +62,23 @@ export function TileView<T>({
 
     const [globalFilter, setGlobalFilter] = useState('');
     const [debouncedGlobalFilter, setDebouncedGlobalFilter] = useState('');
-    const [filters, setFilters] = useState<Record<string, any>>({});
+    const [columnFilters, setColumnFilters] = useState<Record<string, FilterValue>>({});
     const [currentPage, setCurrentPage] = useState(0);
     const [pageSize, setPageSize] = useState(defaultPageSize);
     const [showFilters, setShowFilters] = useState(false);
+
+    // Initialize default filters
+    useEffect(() => {
+        const defaultFilters: Record<string, FilterValue> = {};
+        Object.entries(filterConfigs).forEach(([columnId, config]) => {
+            if (config.defaultValue) {
+                defaultFilters[columnId] = config.defaultValue;
+            }
+        });
+        if (Object.keys(defaultFilters).length > 0) {
+            setColumnFilters(defaultFilters);
+        }
+    }, [filterConfigs]);
 
     // Debounce global filter to avoid too many API calls
     useEffect(() => {
@@ -90,10 +96,10 @@ export function TileView<T>({
         serverFilters.globalSearch = debouncedGlobalFilter;
     }
 
-    // Add custom filters
-    Object.entries(filters).forEach(([key, value]) => {
-        if (value && value !== '') {
-            serverFilters[key] = value;
+    // Add column filters
+    Object.entries(columnFilters).forEach(([columnId, filter]) => {
+        if (filter && filter.value !== '') {
+            serverFilters[columnId] = filter;
         }
     });
 
@@ -125,26 +131,41 @@ export function TileView<T>({
         setCurrentPage(0);
     }, []);
 
-    // Handle filter changes
-    const handleFilterChange = useCallback((key: string, value: any) => {
-        setFilters(prev => {
+    // Handle column filter changes
+    const handleColumnFilterChange = useCallback((columnId: string, filter: FilterValue | null) => {
+        // Prevent changes to immutable filters
+        const config = filterConfigs[columnId];
+        if (config?.immutable) {
+            return;
+        }
+
+        setColumnFilters(prev => {
             const newFilters = { ...prev };
-            if (value && value !== '') {
-                newFilters[key] = value;
+            if (filter) {
+                newFilters[columnId] = filter;
             } else {
-                delete newFilters[key];
+                delete newFilters[columnId];
             }
             return newFilters;
         });
-        setCurrentPage(0);
-    }, []);
+        setCurrentPage(0); // Reset to first page when filter changes
+    }, [filterConfigs]);
 
     // Clear all filters
     const clearAllFilters = useCallback(() => {
-        setFilters({});
         setGlobalFilter('');
+
+        // Preserve immutable filters when clearing
+        const preservedFilters: Record<string, FilterValue> = {};
+        Object.entries(filterConfigs).forEach(([columnId, config]) => {
+            if (config.immutable && config.defaultValue) {
+                preservedFilters[columnId] = config.defaultValue;
+            }
+        });
+        setColumnFilters(preservedFilters);
+
         setCurrentPage(0);
-    }, []);
+    }, [filterConfigs]);
 
     // Extract data
     const tileData = (data?.data?.[entityType] || []) as T[];
@@ -170,10 +191,10 @@ export function TileView<T>({
             <div className="flex items-center gap-2 mt-4">
                 {visibleActions.map((action, index) => {
                     const buttonClass = `px-3 py-1 text-sm font-medium rounded-md transition-colors ${action.variant === 'primary'
-                            ? 'bg-primary-600 text-white hover:bg-primary-700'
-                            : action.variant === 'danger'
-                                ? 'bg-red-600 text-white hover:bg-red-700'
-                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        ? 'bg-primary-600 text-white hover:bg-primary-700'
+                        : action.variant === 'danger'
+                            ? 'bg-red-600 text-white hover:bg-red-700'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                         }`;
 
                     return (
@@ -274,7 +295,10 @@ export function TileView<T>({
         );
     }
 
-    const activeFiltersCount = Object.keys(filters).length + (debouncedGlobalFilter ? 1 : 0);
+    const activeFiltersCount = Object.keys(columnFilters).filter(columnId => {
+        const config = filterConfigs[columnId];
+        return !config?.immutable;
+    }).length + (debouncedGlobalFilter ? 1 : 0);
 
     return (
         <div className="space-y-6">
@@ -317,68 +341,66 @@ export function TileView<T>({
                         </div>
 
                         {/* Filter toggle button */}
-                        {enableFilters && filterConfigs.length > 0 && (
+                        {enableFilters && Object.keys(filterConfigs).length > 0 && (
                             <button
                                 onClick={() => setShowFilters(!showFilters)}
-                                className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md border transition-colors ${showFilters || Object.keys(filters).length > 0
-                                        ? 'bg-primary-100 border-primary-300 text-primary-700'
-                                        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                                className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md border transition-colors ${showFilters || Object.keys(columnFilters).filter(columnId => {
+                                    const config = filterConfigs[columnId];
+                                    return !config?.immutable;
+                                }).length > 0
+                                    ? 'bg-primary-100 border-primary-300 text-primary-700'
+                                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                                     }`}
                             >
                                 <FunnelIcon className="h-4 w-4" />
                                 Filters
-                                {Object.keys(filters).length > 0 && (
-                                    <span className="bg-primary-500 text-white text-xs rounded-full px-2 py-0.5">
-                                        {Object.keys(filters).length}
-                                    </span>
-                                )}
+                                {Object.keys(columnFilters).filter(columnId => {
+                                    const config = filterConfigs[columnId];
+                                    return !config?.immutable;
+                                }).length > 0 && (
+                                        <span className="bg-primary-500 text-white text-xs rounded-full px-2 py-0.5">
+                                            {Object.keys(columnFilters).filter(columnId => {
+                                                const config = filterConfigs[columnId];
+                                                return !config?.immutable;
+                                            }).length}
+                                        </span>
+                                    )}
                                 <ChevronDownIcon className={`h-4 w-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
                             </button>
                         )}
 
                         {/* Clear filters button */}
-                        {(globalFilter || Object.keys(filters).length > 0) && (
-                            <button
-                                onClick={clearAllFilters}
-                                className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                            >
-                                Clear All
-                            </button>
-                        )}
+                        {(globalFilter || Object.keys(columnFilters).filter(columnId => {
+                            const config = filterConfigs[columnId];
+                            return !config?.immutable;
+                        }).length > 0) && (
+                                <button
+                                    onClick={clearAllFilters}
+                                    className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                                >
+                                    Clear All
+                                </button>
+                            )}
                     </div>
                 )}
 
                 {/* Expandable Filters */}
-                {enableFilters && filterConfigs.length > 0 && showFilters && (
+                {enableFilters && Object.keys(filterConfigs).length > 0 && showFilters && (
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {filterConfigs.map((config) => (
-                                <div key={config.key}>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        {config.label}
+                            {Object.entries(filterConfigs).map(([columnId, config]) => (
+                                <div key={columnId} className="flex flex-col">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        {config.label || columnId}
                                     </label>
-                                    {config.type === 'text' ? (
-                                        <input
-                                            type="text"
-                                            value={filters[config.key] || ''}
-                                            onChange={(e) => handleFilterChange(config.key, e.target.value)}
-                                            placeholder={config.placeholder}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                    <div className="flex-1">
+                                        <ColumnFilter
+                                            config={config}
+                                            value={columnFilters[columnId]}
+                                            onChange={(filter) => handleColumnFilterChange(columnId, filter)}
+                                            header={config.label || columnId}
                                         />
-                                    ) : (
-                                        <select
-                                            value={filters[config.key] || ''}
-                                            onChange={(e) => handleFilterChange(config.key, e.target.value)}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                        >
-                                            <option value="">All</option>
-                                            {config.options?.map((option) => (
-                                                <option key={option.value} value={option.value}>
-                                                    {option.label}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    )}
+                                    </div>
                                 </div>
                             ))}
                         </div>

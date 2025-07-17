@@ -9,6 +9,8 @@ import { PostDetailsPage } from './pages/posts/PostDetailsPage';
 import { CreatePostPage } from './pages/posts/CreatePostPage';
 import { EditPostPage } from './pages/posts/EditPostPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { PostsTileViewPage } from './pages/posts/PostsTileViewPage';
+import { UsersTileViewPage } from './pages/users/UsersTileViewPage';
 
 // Define routes with authentication guards
 const rootRoute = createRootRoute();
@@ -55,6 +57,13 @@ const usersListRoute = createRoute({
     component: UsersListPage,
 });
 
+// Tile view for users
+const usersTileViewRoute = createRoute({
+    getParentRoute: () => usersRoute,
+    path: '/user-tiles',
+    component: UsersTileViewPage,
+});
+
 const userDetailsRoute = createRoute({
     getParentRoute: () => usersRoute,
     path: '$userId',
@@ -72,6 +81,13 @@ const postsListRoute = createRoute({
     getParentRoute: () => postsRoute,
     path: '/',
     component: PostsListPage,
+});
+
+// Tile view for posts
+const postsTileViewRoute = createRoute({
+    getParentRoute: () => postsRoute,
+    path: '/post-tiles',
+    component: PostsTileViewPage,
 });
 
 const postDetailsRoute = createRoute({
@@ -103,6 +119,8 @@ const notFoundRoute = createRoute({
 export const routeTree = rootRoute.addChildren([
     layoutRoute.addChildren([
         homeRoute,
+        usersTileViewRoute,
+        postsTileViewRoute,
         usersRoute.addChildren([
             usersListRoute,
             userDetailsRoute,

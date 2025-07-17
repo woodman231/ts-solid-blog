@@ -1,35 +1,52 @@
 import { useState, useCallback } from 'react';
 import { Link } from '@tanstack/react-router';
 import { PostWithAuthor } from '@blog/shared/src/models/Post';
-import { TileView, TileActionConfig, TileRenderer, TileFilterConfig } from '../../components/ui/TileView';
+import { TileView, TileActionConfig, TileRenderer } from '../../components/ui/TileView';
+import { ColumnFilterConfig } from '../../components/ui/ColumnFilter';
 import { DeletePostDialog } from '../../components/posts/DeletePostDialog';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { ENTITY_TYPES } from '@blog/shared/src/index';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { useAuthorSearch } from '../../hooks/useAuthorSearch';
 
 export function PostsTileViewPage() {
     const [postToDelete, setPostToDelete] = useState<string | null>(null);
     const { currentUserId } = useAuthContext();
 
     // Configure filters for tile view
-    const filterConfigs: TileFilterConfig[] = [
-        {
-            key: 'author',
+    const filterConfigs: Record<string, ColumnFilterConfig> = {
+        'authorId': {
+            type: 'lookup',
+            operators: ['in', 'notIn'],
+            useDynamicLookup: true,
+            dynamicLookupHook: useAuthorSearch,
+            lookupSearchable: true,
             label: 'Author',
-            type: 'text',
             placeholder: 'Search by author...',
         },
-        {
-            key: 'status',
-            label: 'Status',
-            type: 'select',
-            options: [
+        status: {
+            type: 'lookup',
+            operators: ['in'],
+            lookupOptions: [
                 { value: 'published', label: 'Published' },
                 { value: 'draft', label: 'Draft' },
                 { value: 'archived', label: 'Archived' },
             ],
+            label: 'Status',
+            placeholder: 'Select status...',
         },
-    ];
+        title: {
+            type: 'text',
+            operators: ['contains', 'startsWith', 'endsWith'],
+            label: 'Title',
+            placeholder: 'Filter by title...',
+        },
+        createdAt: {
+            type: 'date',
+            operators: ['equals', 'before', 'after', 'between'],
+            label: 'Created',
+        },
+    };
 
     // Configure actions for tiles
     const actions: TileActionConfig[] = [

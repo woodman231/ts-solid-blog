@@ -18,6 +18,7 @@ export interface ColumnFilterConfig<T = any> {
     placeholder?: string;
     defaultValue?: FilterValue; // Default filter value applied automatically
     immutable?: boolean; // Whether the filter is immutable (user cannot change it)
+    label?: string; // Optional label for the filter (used in TileView)
 }
 
 interface ColumnFilterProps {

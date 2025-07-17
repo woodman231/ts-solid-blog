@@ -1,23 +1,42 @@
 import { Link } from '@tanstack/react-router';
 import { User } from '@blog/shared/src/models/User';
-import { TileView, TileRenderer, TileFilterConfig } from '../../components/ui/TileView';
+import { TileView, TileRenderer } from '../../components/ui/TileView';
+import { ColumnFilterConfig } from '../../components/ui/ColumnFilter';
 import { ENTITY_TYPES } from '@blog/shared/src/index';
 import { UserIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 
 export function UsersTileViewPage() {
     // Configure filters for user tiles
-    const filterConfigs: TileFilterConfig[] = [
-        {
-            key: 'role',
-            label: 'Role',
-            type: 'select',
-            options: [
+    const filterConfigs: Record<string, ColumnFilterConfig> = {
+        role: {
+            type: 'lookup',
+            operators: ['in'],
+            lookupOptions: [
                 { value: 'admin', label: 'Admin' },
                 { value: 'moderator', label: 'Moderator' },
                 { value: 'user', label: 'User' },
             ],
+            label: 'Role',
+            placeholder: 'Select roles...',
         },
-    ];
+        displayName: {
+            type: 'text',
+            operators: ['contains', 'startsWith', 'endsWith'],
+            label: 'Name',
+            placeholder: 'Filter by name...',
+        },
+        email: {
+            type: 'text',
+            operators: ['contains', 'startsWith', 'endsWith'],
+            label: 'Email',
+            placeholder: 'Filter by email...',
+        },
+        createdAt: {
+            type: 'date',
+            operators: ['equals', 'before', 'after', 'between'],
+            label: 'Member Since',
+        },
+    };
 
     // Tile renderer function for users
     const tileRenderer: TileRenderer<User> = (user) => (
