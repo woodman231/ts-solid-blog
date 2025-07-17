@@ -11,6 +11,8 @@ import { EditPostPage } from './pages/posts/EditPostPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { PostsTileViewPage } from './pages/posts/PostsTileViewPage';
 import { UsersTileViewPage } from './pages/users/UsersTileViewPage';
+import { ModalExamples } from './components/ui/ModalExamples';
+import { FormModalExamples } from './components/ui/FormModalExamples';
 
 // Define routes with authentication guards
 const rootRoute = createRootRoute();
@@ -108,6 +110,20 @@ const editPostRoute = createRoute({
     component: EditPostPage,
 });
 
+// Modal examples route - public
+const modalExamplesRoute = createRoute({
+    getParentRoute: () => layoutRoute,
+    path: 'modals',
+    component: ModalExamples,
+});
+
+// Form modal examples route - public
+const formModalExamplesRoute = createRoute({
+    getParentRoute: () => layoutRoute,
+    path: 'forms',
+    component: FormModalExamples,
+});
+
 // 404 route
 const notFoundRoute = createRoute({
     getParentRoute: () => rootRoute,
@@ -119,6 +135,8 @@ const notFoundRoute = createRoute({
 export const routeTree = rootRoute.addChildren([
     layoutRoute.addChildren([
         homeRoute,
+        modalExamplesRoute,
+        formModalExamplesRoute,
         usersTileViewRoute,
         postsTileViewRoute,
         usersRoute.addChildren([
