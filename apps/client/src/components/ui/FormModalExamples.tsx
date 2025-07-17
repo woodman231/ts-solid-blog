@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FormModal, FormModalWithActions } from '../ui/modals';
+import { FormModal, FormModalWithActions, IframeModal } from '../ui/modals';
 import {
     PencilIcon,
     UserIcon,
@@ -16,6 +16,10 @@ export function FormModalExamples() {
     const [showUserForm, setShowUserForm] = useState(false);
     const [showLongForm, setShowLongForm] = useState(false);
     const [showTestModal, setShowTestModal] = useState(false);
+    const [showIframeModal, setShowIframeModal] = useState(false);
+    const [showIframeSmall, setShowIframeSmall] = useState(false);
+    const [showIframeLarge, setShowIframeLarge] = useState(false);
+    const [showIframeFullscreen, setShowIframeFullscreen] = useState(false);
     const [result, setResult] = useState<string>('');
 
     // Basic form example
@@ -114,6 +118,38 @@ export function FormModalExamples() {
                     className="btn btn-danger"
                 >
                     Show Test Modal
+                </button>
+
+                {/* Iframe Modal Example */}
+                <button
+                    onClick={() => setShowIframeModal(true)}
+                    className="btn btn-success"
+                >
+                    Show Iframe Modal
+                </button>
+
+                {/* Small Iframe Modal Example */}
+                <button
+                    onClick={() => setShowIframeSmall(true)}
+                    className="btn btn-neutral"
+                >
+                    Small Iframe Modal
+                </button>
+
+                {/* Large Iframe Modal Example */}
+                <button
+                    onClick={() => setShowIframeLarge(true)}
+                    className="btn btn-primary"
+                >
+                    Large Iframe Modal
+                </button>
+
+                {/* Fullscreen Iframe Modal Example */}
+                <button
+                    onClick={() => setShowIframeFullscreen(true)}
+                    className="btn btn-error"
+                >
+                    Fullscreen Iframe Modal
                 </button>
             </div>
 
@@ -597,6 +633,47 @@ export function FormModalExamples() {
                     <div className="bg-blue-100 p-2 text-sm">Debug: End of content</div>
                 </div>
             </FormModalWithActions>
+
+            {/* Iframe Modal Examples */}
+            <IframeModal
+                isOpen={showIframeModal}
+                onClose={() => setShowIframeModal(false)}
+                title="Example Website"
+                src="https://www.example.com"
+                width="2xl"
+                height="lg"
+            />
+
+            {/* Small Iframe Modal */}
+            <IframeModal
+                isOpen={showIframeSmall}
+                onClose={() => setShowIframeSmall(false)}
+                title="GitHub - Small Size"
+                src="https://github.com"
+                width="lg"
+                height="lg"
+            />
+
+            {/* Large Iframe Modal */}
+            <IframeModal
+                isOpen={showIframeLarge}
+                onClose={() => setShowIframeLarge(false)}
+                title="MDN Web Docs - Large Size"
+                src="https://developer.mozilla.org"
+                width="5xl"
+                height="5xl"
+            />
+
+            {/* Fullscreen Iframe Modal */}
+            <IframeModal
+                isOpen={showIframeFullscreen}
+                onClose={() => setShowIframeFullscreen(false)}
+                title="YouTube - Fullscreen"
+                src="https://www.youtube.com"
+                width="full"
+                height="full"
+                showTitle={true}
+            />
         </div>
     );
 }
