@@ -16,6 +16,8 @@ export interface ColumnFilterConfig<T = any> {
         error: any;
     }; // Hook function for dynamic lookup
     placeholder?: string;
+    defaultValue?: FilterValue; // Default filter value applied automatically
+    immutable?: boolean; // Whether the filter is immutable (user cannot change it)
 }
 
 interface ColumnFilterProps {
@@ -35,6 +37,18 @@ export function ColumnFilter({ config, value, onChange, header }: ColumnFilterPr
     const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
 
     const operators = config.operators || getDefaultOperators(config.type);
+
+    // Apply default value if provided and no current value exists
+    useEffect(() => {
+        if (config.defaultValue && !value) {
+            onChange(config.defaultValue);
+        }
+    }, [config.defaultValue, value, onChange]);
+
+    // If filter is immutable, don't render the filter button
+    if (config.immutable) {
+        return null;
+    }
 
     // Calculate dropdown position when opening
     useEffect(() => {

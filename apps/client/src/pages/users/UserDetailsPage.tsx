@@ -3,36 +3,95 @@ import { useQuery } from '@tanstack/react-query';
 import { useSocketStore } from '../../lib/socket';
 import { Link } from '@tanstack/react-router';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
-import { TileView, TileRenderer } from '../../components/ui/TileView';
+import { DataTable, ColumnFilterConfig } from '../../components/ui/DataTable';
 import { User } from '@blog/shared/src/models/User';
-import { Post } from '@blog/shared/src/models/Post';
+import { PostWithAuthor } from '@blog/shared/src/models/Post';
 import { LoadPageRequest, EntityDataResponse, ENTITY_TYPES } from '@blog/shared/src/index';
+import { ColumnDef } from '@tanstack/react-table';
 
 export function UserDetailsPage() {
     const { userId } = useParams({ from: '/layout/users/$userId' });
     const { sendRequest } = useSocketStore();
 
-    // Tile renderer for posts
-    const postTileRenderer: TileRenderer<Post> = (post) => (
-        <div key={post.id} className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="p-6">
-                <h3 className="text-lg font-medium text-gray-900 truncate">{post.title}</h3>
-                <p className="mt-2 text-sm text-gray-500 line-clamp-2">{post.description}</p>
-                <div className="mt-4">
-                    <Link
-                        to="/posts/$postId"
-                        params={{ postId: post.id }}
-                        className="text-primary-600 hover:text-primary-800 text-sm font-medium"
-                    >
-                        Read more →
-                    </Link>
+    // Configure column filters with immutable filter for this user's posts
+    const columnFilterConfigs: Record<string, ColumnFilterConfig> = {
+        title: {
+            type: 'text',
+            operators: ['contains', 'startsWith', 'endsWith', 'equals'],
+            placeholder: 'Filter by title...',
+        },
+        description: {
+            type: 'text',
+            operators: ['contains', 'startsWith', 'endsWith'],
+            placeholder: 'Filter by description...',
+        },
+        'authorId': {
+            type: 'lookup',
+            operators: ['in'],
+            defaultValue: {
+                operator: 'in',
+                value: [userId], // Filter to only this user's posts
+            },
+            immutable: true, // User cannot change this filter
+        },
+        createdAt: {
+            type: 'date',
+            operators: ['equals', 'before', 'after', 'between'],
+        },
+    };
+
+    // Configure column sort mapping
+    const columnSortMapping: Record<string, string> = {
+        'title': 'title',
+        'description': 'description',
+        'authorId': 'author.displayName',
+        'createdAt': 'createdAt',
+        'updatedAt': 'updatedAt',
+    };
+
+    // Define columns for the posts table
+    const columns: ColumnDef<PostWithAuthor>[] = [
+        {
+            accessorKey: 'title',
+            header: 'Title',
+            cell: ({ row }) => (
+                <Link
+                    to="/posts/$postId"
+                    params={{ postId: row.original.id }}
+                    className="text-primary-600 hover:text-primary-800 font-medium"
+                >
+                    {row.original.title}
+                </Link>
+            ),
+        },
+        {
+            accessorKey: 'description',
+            header: 'Description',
+            cell: ({ row }) => (
+                <div className="truncate max-w-xs" title={row.original.description}>
+                    {row.original.description}
                 </div>
-            </div>
-            <div className="bg-gray-50 px-6 py-2 text-xs text-gray-500">
-                Posted on {new Date(post.createdAt).toLocaleDateString()}
-            </div>
-        </div>
-    );
+            ),
+        },
+        {
+            accessorKey: 'createdAt',
+            header: 'Posted',
+            cell: ({ row }) => new Date(row.original.createdAt).toLocaleDateString(),
+        },
+        {
+            id: 'actions',
+            header: '',
+            cell: ({ row }) => (
+                <Link
+                    to="/posts/$postId"
+                    params={{ postId: row.original.id }}
+                    className="text-primary-600 hover:text-primary-800 text-sm font-medium"
+                >
+                    View →
+                </Link>
+            ),
+        },
+    ];
 
     // Fetch user data
     const { data, isLoading, error } = useQuery({
@@ -106,19 +165,19 @@ export function UserDetailsPage() {
                 </div>
             </div>
 
-            <h2 className="text-xl font-bold mt-8">Posts by {user.displayName}</h2>
-
-            <TileView
+            <DataTable
                 entityType={ENTITY_TYPES.POSTS}
-                tileRenderer={postTileRenderer}
-                initialSorting={{ createdAt: 'desc' }}
+                columns={columns}
+                initialSorting={[{ id: 'createdAt', desc: true }]}
                 enableGlobalFilter={true}
-                globalFilterPlaceholder="Search this user's posts..."
-                title=""
-                defaultPageSize={12}
+                globalFilterPlaceholder={`Search ${user.displayName}'s posts...`}
+                enableColumnFilters={true}
+                columnFilterConfigs={columnFilterConfigs}
+                columnSortMapping={columnSortMapping}
+                title={`Posts by ${user.displayName}`}
+                defaultPageSize={10}
                 staleTime={1000 * 30}
-                emptyStateMessage={`${user.displayName} hasn't created any posts yet.`}
-                tileContainerClassName="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+                refetchOnMount="always"
             />
         </div>
     );

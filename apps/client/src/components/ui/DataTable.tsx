@@ -60,6 +60,19 @@ export function DataTable<T>({
     const [currentPage, setCurrentPage] = useState(0);
     const [pageSize, setPageSize] = useState(defaultPageSize);
 
+    // Initialize default filters
+    useEffect(() => {
+        const defaultFilters: ColumnFilters = {};
+        Object.entries(columnFilterConfigs).forEach(([columnId, config]) => {
+            if (config.defaultValue) {
+                defaultFilters[columnId] = config.defaultValue;
+            }
+        });
+        if (Object.keys(defaultFilters).length > 0) {
+            setColumnFilters(defaultFilters);
+        }
+    }, [columnFilterConfigs]);
+
     // Debounce global filter to avoid too many API calls
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -129,6 +142,12 @@ export function DataTable<T>({
 
     // Handle column filter changes
     const handleColumnFilterChange = useCallback((columnId: string, filter: FilterValue | null) => {
+        // Prevent changes to immutable filters
+        const config = columnFilterConfigs[columnId];
+        if (config?.immutable) {
+            return;
+        }
+
         setColumnFilters(prev => {
             const newFilters = { ...prev };
             if (filter) {
@@ -139,7 +158,7 @@ export function DataTable<T>({
             return newFilters;
         });
         setCurrentPage(0); // Reset to first page when filter changes
-    }, []);
+    }, [columnFilterConfigs]);
 
     // Extract data
     const tableData = (data?.data?.[entityType] || []) as T[];
@@ -210,7 +229,12 @@ export function DataTable<T>({
         );
     }
 
-    const activeFiltersCount = Object.keys(columnFilters).length + (debouncedGlobalFilter ? 1 : 0);
+    // Calculate active filters count excluding immutable filters
+    const userChangedFiltersCount = Object.keys(columnFilters).filter(columnId => {
+        const config = columnFilterConfigs[columnId];
+        return !config?.immutable;
+    }).length;
+    const activeFiltersCount = userChangedFiltersCount + (debouncedGlobalFilter ? 1 : 0);
 
     return (
         <div className="space-y-6">
@@ -261,10 +285,19 @@ export function DataTable<T>({
             )}
 
             {/* Clear All Filters */}
-            {(enableColumnFilters && Object.keys(columnFilters).length > 0) && (
+            {(enableColumnFilters && userChangedFiltersCount > 0) && (
                 <div className="flex justify-end">
                     <button
-                        onClick={() => setColumnFilters({})}
+                        onClick={() => {
+                            // Preserve immutable filters when clearing
+                            const preservedFilters: ColumnFilters = {};
+                            Object.entries(columnFilterConfigs).forEach(([columnId, config]) => {
+                                if (config.immutable && columnFilters[columnId]) {
+                                    preservedFilters[columnId] = columnFilters[columnId];
+                                }
+                            });
+                            setColumnFilters(preservedFilters);
+                        }}
                         className="px-3 py-1 text-sm text-red-600 hover:text-red-800"
                     >
                         Clear all column filters
