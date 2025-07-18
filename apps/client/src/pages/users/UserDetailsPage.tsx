@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useSocketStore } from '../../lib/socket';
 import { Link } from '@tanstack/react-router';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
-import { DataTable, ColumnFilterConfig } from '../../components/ui/DataTable';
+import { EntityDataTable, ColumnFilterConfig } from '../../components/ui/EntityDataTable';
 import { User } from '@blog/shared/src/models/User';
 import { PostWithAuthor } from '@blog/shared/src/models/Post';
 import { LoadPageRequest, EntityDataResponse, ENTITY_TYPES } from '@blog/shared/src/index';
@@ -165,7 +165,7 @@ export function UserDetailsPage() {
                 </div>
             </div>
 
-            <DataTable
+            <EntityDataTable
                 entityType={ENTITY_TYPES.POSTS}
                 columns={columns}
                 initialSorting={[{ id: 'createdAt', desc: true }]}

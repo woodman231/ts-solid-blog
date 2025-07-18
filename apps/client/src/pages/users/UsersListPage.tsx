@@ -1,7 +1,7 @@
 import { ColumnDef } from '@tanstack/react-table';
 import { Link } from '@tanstack/react-router';
 import { User } from '@blog/shared/src/models/User';
-import { DataTable, ColumnFilterConfig } from '../../components/ui/DataTable';
+import { EntityDataTable, ColumnFilterConfig } from '../../components/ui/EntityDataTable';
 import { ENTITY_TYPES } from '@blog/shared/src/index';
 
 export function UsersListPage() {
@@ -63,7 +63,7 @@ export function UsersListPage() {
     ];
 
     return (
-        <DataTable
+        <EntityDataTable
             entityType={ENTITY_TYPES.USERS}
             columns={columns}
             initialSorting={[{ id: 'createdAt', desc: true }]}

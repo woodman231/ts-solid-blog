@@ -1,5 +1,3 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import {
     flexRender,
     getCoreRowModel,
@@ -7,12 +5,9 @@ import {
     useReactTable,
     ColumnDef,
 } from '@tanstack/react-table';
-import { useSocketStore } from '../../lib/socket';
-import { FetchEntitiesRequest, EntityDataResponse } from '@blog/shared/src/index';
 import { LoadingSpinner } from './LoadingSpinner';
 import { MagnifyingGlassIcon } from '@heroicons/react/20/solid';
 import { ColumnFilter, ColumnFilterConfig } from './ColumnFilter';
-import { EntityType } from '@blog/shared/src/index';
 import type { FilterValue } from "@blog/shared/types/filters";
 
 interface ColumnFilters {
@@ -20,167 +15,76 @@ interface ColumnFilters {
 }
 
 interface DataTableProps<T> {
-    entityType: EntityType;
+    data: T[];
     columns: ColumnDef<T>[];
-    initialSorting?: SortingState;
+    sorting: SortingState;
+    onSortingChange: (updater: any) => void;
+    globalFilter: string;
+    onGlobalFilterChange: (value: string) => void;
+    debouncedGlobalFilter: string;
+    columnFilters: ColumnFilters;
+    onColumnFilterChange: (columnId: string, filter: FilterValue | null) => void;
+    currentPage: number;
+    onPageChange: (page: number) => void;
+    pageSize: number;
+    onPageSizeChange: (size: number) => void;
+    totalPages: number;
+    total: number;
+    filteredTotal: number;
+    isLoading: boolean;
+    error: any;
+    onRefetch: () => void;
     enableGlobalFilter?: boolean;
     globalFilterPlaceholder?: string;
     enableColumnFilters?: boolean;
-    columnFilterConfigs?: Record<string, ColumnFilterConfig>; // Config for each filterable column
-    columnSortMapping?: Record<string, string>; // Map column IDs to server field names for sorting
+    columnFilterConfigs?: Record<string, ColumnFilterConfig>;
     title: string;
     createButton?: React.ReactNode;
-    defaultPageSize?: number;
-    staleTime?: number;
-    refetchOnMount?: boolean | 'always';
-    onDataChange?: (data: any) => void; // Callback for external access to data/refetch
+    entityType?: string; // For display purposes (e.g., "No {entityType} found")
+    activeFiltersCount: number;
+    userChangedFiltersCount: number;
+    onClearAllFilters: () => void;
 }
 
 export function DataTable<T>({
-    entityType,
+    data,
     columns,
-    initialSorting = [{ id: 'createdAt', desc: true }],
+    sorting,
+    onSortingChange,
+    globalFilter,
+    onGlobalFilterChange,
+    debouncedGlobalFilter,
+    columnFilters,
+    onColumnFilterChange,
+    currentPage,
+    onPageChange,
+    pageSize,
+    onPageSizeChange,
+    totalPages,
+    total,
+    filteredTotal,
+    isLoading,
+    error,
+    onRefetch,
     enableGlobalFilter = false,
     globalFilterPlaceholder = 'Search...',
     enableColumnFilters = false,
     columnFilterConfigs = {},
-    columnSortMapping = {},
     title,
     createButton,
-    defaultPageSize = 20,
-    staleTime = 1000 * 30,
-    refetchOnMount = 'always',
-    onDataChange,
+    entityType = 'items',
+    activeFiltersCount,
+    userChangedFiltersCount,
+    onClearAllFilters,
 }: DataTableProps<T>) {
-    const { sendRequest } = useSocketStore();
-    const [sorting, setSorting] = useState<SortingState>(initialSorting);
-    const [globalFilter, setGlobalFilter] = useState('');
-    const [debouncedGlobalFilter, setDebouncedGlobalFilter] = useState('');
-    const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
-    const [currentPage, setCurrentPage] = useState(0);
-    const [pageSize, setPageSize] = useState(defaultPageSize);
-
-    // Initialize default filters
-    useEffect(() => {
-        const defaultFilters: ColumnFilters = {};
-        Object.entries(columnFilterConfigs).forEach(([columnId, config]) => {
-            if (config.defaultValue) {
-                defaultFilters[columnId] = config.defaultValue;
-            }
-        });
-        if (Object.keys(defaultFilters).length > 0) {
-            setColumnFilters(defaultFilters);
-        }
-    }, [columnFilterConfigs]);
-
-    // Debounce global filter to avoid too many API calls
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setDebouncedGlobalFilter(globalFilter);
-        }, 300); // 300ms delay
-
-        return () => clearTimeout(timer);
-    }, [globalFilter]);
-
-    // Convert sorting state to server format with column mapping
-    const serverSort = sorting.reduce((acc, sort) => {
-        // Map client column IDs to server field names using provided mapping
-        const serverFieldName = columnSortMapping[sort.id] || sort.id;
-
-        acc[serverFieldName] = sort.desc ? 'desc' : 'asc';
-        return acc;
-    }, {} as Record<string, 'asc' | 'desc'>);
-
-    // Convert column filters to server format
-    const serverFilters: Record<string, any> = {};
-
-    // Add global search if enabled
-    if (debouncedGlobalFilter && enableGlobalFilter) {
-        serverFilters.globalSearch = debouncedGlobalFilter;
-    }
-
-    // Add column filters
-    Object.entries(columnFilters).forEach(([columnId, filter]) => {
-        if (filter && filter.value !== '') {
-            serverFilters[columnId] = filter;
-        }
-    });
-
-    // Fetch data with server-side pagination, sorting, and filtering
-    const { data, isLoading, error, refetch } = useQuery({
-        queryKey: [entityType, currentPage, pageSize, serverSort, serverFilters],
-        queryFn: async () => {
-            const request: FetchEntitiesRequest = {
-                requestType: 'fetchEntities',
-                requestParams: {
-                    entityType,
-                    sort: serverSort,
-                    page: currentPage,
-                    limit: pageSize,
-                    filterOptions: Object.keys(serverFilters).length > 0 ? serverFilters : undefined,
-                },
-            };
-
-            const response = await sendRequest<FetchEntitiesRequest, EntityDataResponse>(request);
-            return response.responseParams.entities;
-        },
-        staleTime,
-        refetchOnMount,
-    });
-
-    // Handle sorting changes
-    const handleSortingChange = useCallback((updater: any) => {
-        setSorting(updater);
-        setCurrentPage(0); // Reset to first page when sorting changes
-    }, []);
-
-    // Handle global filter changes
-    const handleGlobalFilterChange = useCallback((value: string) => {
-        setGlobalFilter(value);
-        setCurrentPage(0); // Reset to first page when filter changes
-    }, []);
-
-    // Handle column filter changes
-    const handleColumnFilterChange = useCallback((columnId: string, filter: FilterValue | null) => {
-        // Prevent changes to immutable filters
-        const config = columnFilterConfigs[columnId];
-        if (config?.immutable) {
-            return;
-        }
-
-        setColumnFilters(prev => {
-            const newFilters = { ...prev };
-            if (filter) {
-                newFilters[columnId] = filter;
-            } else {
-                delete newFilters[columnId];
-            }
-            return newFilters;
-        });
-        setCurrentPage(0); // Reset to first page when filter changes
-    }, [columnFilterConfigs]);
-
-    // Extract data
-    const tableData = (data?.data?.[entityType] || []) as T[];
-    const totalPages = data?.totalPages || 0;
-    const total = data?.total || 0;
-    const filteredTotal = data?.filteredTotal || 0;
-
-    // Expose data and refetch to parent component
-    useEffect(() => {
-        if (onDataChange) {
-            onDataChange({ data, refetch, isLoading, error });
-        }
-    }, [data, refetch, isLoading, error, onDataChange]);
-
     // Configure table
     const table = useReactTable({
-        data: tableData,
+        data,
         columns,
         state: {
             sorting,
         },
-        onSortingChange: handleSortingChange,
+        onSortingChange,
         getCoreRowModel: getCoreRowModel(),
         manualSorting: true,
         manualPagination: true,
@@ -220,7 +124,7 @@ export function DataTable<T>({
                 </div>
                 <p className="text-red-700 mt-2">{errorMessage}</p>
                 <button
-                    onClick={() => refetch()}
+                    onClick={() => onRefetch()}
                     className="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
                 >
                     Try Again
@@ -229,13 +133,6 @@ export function DataTable<T>({
         );
     }
 
-    // Calculate active filters count excluding immutable filters
-    const userChangedFiltersCount = Object.keys(columnFilters).filter(columnId => {
-        const config = columnFilterConfigs[columnId];
-        return !config?.immutable;
-    }).length;
-    const activeFiltersCount = userChangedFiltersCount + (debouncedGlobalFilter ? 1 : 0);
-
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -243,7 +140,7 @@ export function DataTable<T>({
                 <h1 className="text-2xl font-bold">{title}</h1>
                 <div className="flex items-center gap-4">
                     <div className="text-sm text-gray-600">
-                        Showing {tableData.length} of {filteredTotal} {entityType}
+                        Showing {data.length} of {filteredTotal} {entityType}
                         {enableGlobalFilter && debouncedGlobalFilter && filteredTotal !== total && (
                             <span className="text-primary-600"> (filtered from {total} total)</span>
                         )}
@@ -269,13 +166,13 @@ export function DataTable<T>({
                             type="text"
                             placeholder={globalFilterPlaceholder}
                             value={globalFilter}
-                            onChange={(e) => handleGlobalFilterChange(e.target.value)}
+                            onChange={(e) => onGlobalFilterChange(e.target.value)}
                             className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                         />
                     </div>
                     {globalFilter && (
                         <button
-                            onClick={() => handleGlobalFilterChange('')}
+                            onClick={() => onGlobalFilterChange('')}
                             className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                         >
                             Clear
@@ -288,16 +185,7 @@ export function DataTable<T>({
             {(enableColumnFilters && userChangedFiltersCount > 0) && (
                 <div className="flex justify-end">
                     <button
-                        onClick={() => {
-                            // Preserve immutable filters when clearing
-                            const preservedFilters: ColumnFilters = {};
-                            Object.entries(columnFilterConfigs).forEach(([columnId, config]) => {
-                                if (config.immutable && columnFilters[columnId]) {
-                                    preservedFilters[columnId] = columnFilters[columnId];
-                                }
-                            });
-                            setColumnFilters(preservedFilters);
-                        }}
+                        onClick={onClearAllFilters}
                         className="px-3 py-1 text-sm text-red-600 hover:text-red-800"
                     >
                         Clear all column filters
@@ -348,7 +236,7 @@ export function DataTable<T>({
                                                         <ColumnFilter
                                                             config={filterConfig}
                                                             value={filterValue}
-                                                            onChange={(filter) => handleColumnFilterChange(columnId, filter)}
+                                                            onChange={(filter) => onColumnFilterChange(columnId, filter)}
                                                             header={typeof header.column.columnDef.header === 'string'
                                                                 ? header.column.columnDef.header
                                                                 : columnId
@@ -363,7 +251,7 @@ export function DataTable<T>({
                             ))}
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {tableData.length > 0 ? (
+                            {data.length > 0 ? (
                                 table.getRowModel().rows.map(row => (
                                     <tr key={row.id} className="hover:bg-gray-50">
                                         {row.getVisibleCells().map(cell => (
@@ -391,14 +279,14 @@ export function DataTable<T>({
                     <div className="flex items-center gap-2">
                         <button
                             className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                            onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+                            onClick={() => onPageChange(Math.max(0, currentPage - 1))}
                             disabled={currentPage === 0 || isLoading}
                         >
                             Previous
                         </button>
                         <button
                             className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                            onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
+                            onClick={() => onPageChange(Math.min(totalPages - 1, currentPage + 1))}
                             disabled={currentPage >= totalPages - 1 || isLoading}
                         >
                             Next
@@ -410,8 +298,7 @@ export function DataTable<T>({
                         <select
                             value={pageSize}
                             onChange={(e) => {
-                                setPageSize(Number(e.target.value));
-                                setCurrentPage(0);
+                                onPageSizeChange(Number(e.target.value));
                             }}
                             className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                         >

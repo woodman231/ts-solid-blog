@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { Link } from '@tanstack/react-router';
 import { ColumnDef } from '@tanstack/react-table';
 import { PostWithAuthor } from '@blog/shared/src/models/Post';
-import { DataTable, ColumnFilterConfig } from '../../components/ui/DataTable';
+import { EntityDataTable, ColumnFilterConfig } from '../../components/ui/EntityDataTable';
 import { DeletePostDialog } from '../../components/posts/DeletePostDialog';
 import { useAuthorSearch } from '../../hooks/useAuthorSearch';
 import { useAuthContext } from '../../contexts/AuthContext';
@@ -132,7 +132,7 @@ export function PostsListPage() {
 
     return (
         <>
-            <DataTable
+            <EntityDataTable
                 entityType={ENTITY_TYPES.POSTS}
                 columns={columns}
                 initialSorting={[{ id: 'createdAt', desc: true }]}
