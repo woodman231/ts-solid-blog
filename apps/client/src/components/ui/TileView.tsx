@@ -1,9 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { MagnifyingGlassIcon, FunnelIcon, ChevronDownIcon, ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/outline';
-import { useSocketStore } from '../../lib/socket';
-import { FetchEntitiesRequest, EntityDataResponse } from '@blog/shared/src/index';
-import { EntityType } from '@blog/shared/src/index';
+import {
+    MagnifyingGlassIcon, FunnelIcon, ChevronDownIcon, ArrowUpIcon, ArrowDownIcon
+} from '@heroicons/react/24/outline';
 import { ColumnFilter, ColumnFilterConfig } from './ColumnFilter';
 import type { FilterValue } from "@blog/shared/types/filters";
 
@@ -26,31 +23,68 @@ export interface TileSortConfig {
 }
 
 interface TileViewProps<T> {
-    entityType: EntityType;
+    data: T[];
     tileRenderer: TileRenderer<T>;
-    initialSorting?: Record<string, 'asc' | 'desc'>;
+    globalFilter: string;
+    onGlobalFilterChange: (value: string) => void;
+    debouncedGlobalFilter: string;
+    columnFilters: Record<string, FilterValue>;
+    onColumnFilterChange: (columnId: string, filter: FilterValue | null) => void;
+    onClearAllFilters: () => void;
+    sorting: Record<string, 'asc' | 'desc'>;
+    onSortingChange: (columnId: string) => void;
+    currentPage: number;
+    onPageChange: (page: number) => void;
+    pageSize: number;
+    onPageSizeChange: (size: number) => void;
+    totalPages: number;
+    total: number;
+    filteredTotal: number;
+    isLoading: boolean;
+    error: any;
+    onRefetch: () => void;
+    showFilters: boolean;
+    onShowFiltersToggle: () => void;
+    activeFiltersCount: number;
     enableGlobalFilter?: boolean;
     globalFilterPlaceholder?: string;
     enableFilters?: boolean;
-    filterConfigs?: Record<string, ColumnFilterConfig>; // Changed from TileFilterConfig[] to Record<string, ColumnFilterConfig>
-    enableSorting?: boolean; // New prop to enable/disable sorting
-    sortConfigs?: TileSortConfig[]; // Available sort options
+    filterConfigs?: Record<string, ColumnFilterConfig>;
+    enableSorting?: boolean;
+    sortConfigs?: TileSortConfig[];
     title: string;
     createButton?: React.ReactNode;
     actions?: TileActionConfig[];
-    defaultPageSize?: number;
-    staleTime?: number;
-    refetchOnMount?: boolean | 'always';
-    onDataChange?: (data: any) => void;
     emptyStateMessage?: string;
-    tileContainerClassName?: string; // Custom CSS classes for tile container
-    loadingRows?: number; // Number of skeleton tiles to show while loading
+    tileContainerClassName?: string;
+    loadingRows?: number;
+    entityType?: string; // For display purposes (e.g., "No {entityType} found")
 }
 
 export function TileView<T>({
-    entityType,
+    data,
     tileRenderer,
-    initialSorting = { createdAt: 'desc' },
+    globalFilter,
+    onGlobalFilterChange,
+    debouncedGlobalFilter,
+    columnFilters,
+    onColumnFilterChange,
+    onClearAllFilters,
+    sorting,
+    onSortingChange,
+    currentPage,
+    onPageChange,
+    pageSize,
+    onPageSizeChange,
+    totalPages,
+    total,
+    filteredTotal,
+    isLoading,
+    error,
+    onRefetch,
+    showFilters,
+    onShowFiltersToggle,
+    activeFiltersCount,
     enableGlobalFilter = true,
     globalFilterPlaceholder = 'Search...',
     enableFilters = false,
@@ -60,161 +94,17 @@ export function TileView<T>({
     title,
     createButton,
     actions = [],
-    defaultPageSize = 20,
-    staleTime = 1000 * 30,
-    refetchOnMount = 'always',
-    onDataChange,
     emptyStateMessage,
     tileContainerClassName = 'grid gap-6 md:grid-cols-2 lg:grid-cols-3',
     loadingRows = 6,
+    entityType = 'items',
 }: TileViewProps<T>) {
-    const { sendRequest } = useSocketStore();
-
-    const [globalFilter, setGlobalFilter] = useState('');
-    const [debouncedGlobalFilter, setDebouncedGlobalFilter] = useState('');
-    const [columnFilters, setColumnFilters] = useState<Record<string, FilterValue>>({});
-    const [sorting, setSorting] = useState<Record<string, 'asc' | 'desc'>>(initialSorting);
-    const [currentPage, setCurrentPage] = useState(0);
-    const [pageSize, setPageSize] = useState(defaultPageSize);
-    const [showFilters, setShowFilters] = useState(false);
-
-    // Initialize default filters
-    useEffect(() => {
-        const defaultFilters: Record<string, FilterValue> = {};
-        Object.entries(filterConfigs).forEach(([columnId, config]) => {
-            if (config.defaultValue) {
-                defaultFilters[columnId] = config.defaultValue;
-            }
-        });
-        if (Object.keys(defaultFilters).length > 0) {
-            setColumnFilters(defaultFilters);
-        }
-    }, [filterConfigs]);
-
-    // Debounce global filter to avoid too many API calls
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setDebouncedGlobalFilter(globalFilter);
-        }, 300);
-        return () => clearTimeout(timer);
-    }, [globalFilter]);
-
-    // Handle global filter changes
-    const handleGlobalFilterChange = useCallback((value: string) => {
-        setGlobalFilter(value);
-        setCurrentPage(0);
-    }, []);
-
-    // Handle column filter changes
-    const handleColumnFilterChange = useCallback((columnId: string, filter: FilterValue | null) => {
-        // Prevent changes to immutable filters
-        const config = filterConfigs[columnId];
-        if (config?.immutable) {
-            return;
-        }
-
-        setColumnFilters(prev => {
-            const newFilters = { ...prev };
-            if (filter) {
-                newFilters[columnId] = filter;
-            } else {
-                delete newFilters[columnId];
-            }
-            return newFilters;
-        });
-        setCurrentPage(0); // Reset to first page when filter changes
-    }, [filterConfigs]);
-
-    // Clear all filters
-    const clearAllFilters = useCallback(() => {
-        setGlobalFilter('');
-
-        // Preserve immutable filters when clearing
-        const preservedFilters: Record<string, FilterValue> = {};
-        Object.entries(filterConfigs).forEach(([columnId, config]) => {
-            if (config.immutable && config.defaultValue) {
-                preservedFilters[columnId] = config.defaultValue;
-            }
-        });
-        setColumnFilters(preservedFilters);
-
-        setCurrentPage(0);
-    }, [filterConfigs]);
-
-    // Handle sorting changes
-    const handleSortingChange = useCallback((columnId: string) => {
-        setSorting(prev => {
-            const currentDirection = prev[columnId];
-            const newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
-            return { [columnId]: newDirection };
-        });
-        setCurrentPage(0); // Reset to first page when sorting changes
-    }, []);
-
     // Get current sort info for display
     const currentSortKey = Object.keys(sorting)[0];
     const currentSortDirection = sorting[currentSortKey];
 
-    // Build server filters
-    const serverFilters: Record<string, any> = {};
-
-    // Add global search if enabled
-    if (debouncedGlobalFilter && enableGlobalFilter) {
-        serverFilters.globalSearch = debouncedGlobalFilter;
-    }
-
-    // Add column filters
-    Object.entries(columnFilters).forEach(([columnId, filter]) => {
-        if (filter && filter.value !== '') {
-            serverFilters[columnId] = filter;
-        }
-    });
-
-    // Convert sorting to server format with field mapping
-    const serverSort = Object.entries(sorting).reduce((acc, [key, direction]) => {
-        const sortConfig = sortConfigs.find(config => config.key === key);
-        const serverField = sortConfig?.serverField || key;
-        acc[serverField] = direction;
-        return acc;
-    }, {} as Record<string, 'asc' | 'desc'>);
-
-    // Fetch data with server-side pagination, sorting, and filtering
-    const { data, isLoading, error, refetch } = useQuery({
-        queryKey: [entityType, currentPage, pageSize, serverSort, serverFilters],
-        queryFn: async () => {
-            const request: FetchEntitiesRequest = {
-                requestType: 'fetchEntities',
-                requestParams: {
-                    entityType,
-                    sort: serverSort,
-                    page: currentPage,
-                    limit: pageSize,
-                    filterOptions: Object.keys(serverFilters).length > 0 ? serverFilters : undefined,
-                },
-            };
-
-            const response = await sendRequest<FetchEntitiesRequest, EntityDataResponse>(request);
-            return response.responseParams.entities;
-        },
-        staleTime,
-        refetchOnMount,
-    });
-
-    // Extract data
-    const tileData = (data?.data?.[entityType] || []) as T[];
-    const totalPages = data?.totalPages || 0;
-    const total = data?.total || 0;
-    const filteredTotal = data?.filteredTotal || 0;
-
-    // Expose data and refetch to parent component
-    useEffect(() => {
-        if (onDataChange) {
-            onDataChange({ data, refetch, isLoading, error });
-        }
-    }, [data, refetch, isLoading, error, onDataChange]);
-
     // Generate action buttons for a tile
-    const generateActionButtons = useCallback((item: any) => {
+    const generateActionButtons = (item: any) => {
         if (actions.length === 0) return null;
 
         const visibleActions = actions.filter(action => !action.show || action.show(item));
@@ -243,7 +133,7 @@ export function TileView<T>({
                 })}
             </div>
         );
-    }, [actions]);
+    };
 
     // Loading skeleton
     const LoadingSkeleton = () => (
@@ -319,7 +209,7 @@ export function TileView<T>({
                 </div>
                 <p className="text-red-700 mt-2">{errorMessage}</p>
                 <button
-                    onClick={() => refetch()}
+                    onClick={() => onRefetch()}
                     className="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
                 >
                     Try Again
@@ -328,11 +218,6 @@ export function TileView<T>({
         );
     }
 
-    const activeFiltersCount = Object.keys(columnFilters).filter(columnId => {
-        const config = filterConfigs[columnId];
-        return !config?.immutable;
-    }).length + (debouncedGlobalFilter ? 1 : 0);
-
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -340,7 +225,7 @@ export function TileView<T>({
                 <h1 className="text-2xl font-bold">{title}</h1>
                 <div className="flex items-center gap-4">
                     <div className="text-sm text-gray-600">
-                        Showing {tileData.length} of {filteredTotal} {entityType}
+                        Showing {data.length} of {filteredTotal} {entityType}
                         {enableGlobalFilter && debouncedGlobalFilter && filteredTotal !== total && (
                             <span className="text-primary-600"> (filtered from {total} total)</span>
                         )}
@@ -368,7 +253,7 @@ export function TileView<T>({
                                 type="text"
                                 placeholder={globalFilterPlaceholder}
                                 value={globalFilter}
-                                onChange={(e) => handleGlobalFilterChange(e.target.value)}
+                                onChange={(e) => onGlobalFilterChange(e.target.value)}
                                 className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                             />
                         </div>
@@ -378,7 +263,7 @@ export function TileView<T>({
                             <div className="relative">
                                 <select
                                     value={currentSortKey}
-                                    onChange={(e) => handleSortingChange(e.target.value)}
+                                    onChange={(e) => onSortingChange(e.target.value)}
                                     className="appearance-none bg-white border border-gray-300 rounded-md px-3 py-2 pr-8 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                                 >
                                     {sortConfigs.map((config) => (
@@ -396,7 +281,7 @@ export function TileView<T>({
                         {/* Sort direction toggle */}
                         {enableSorting && sortConfigs.length > 0 && (
                             <button
-                                onClick={() => handleSortingChange(currentSortKey)}
+                                onClick={() => onSortingChange(currentSortKey)}
                                 className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                                 title={`Sort ${currentSortDirection === 'asc' ? 'ascending' : 'descending'}`}
                             >
@@ -412,7 +297,7 @@ export function TileView<T>({
                         {/* Filter toggle button */}
                         {enableFilters && Object.keys(filterConfigs).length > 0 && (
                             <button
-                                onClick={() => setShowFilters(!showFilters)}
+                                onClick={onShowFiltersToggle}
                                 className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md border transition-colors ${showFilters || Object.keys(columnFilters).filter(columnId => {
                                     const config = filterConfigs[columnId];
                                     return !config?.immutable;
@@ -444,7 +329,7 @@ export function TileView<T>({
                             return !config?.immutable;
                         }).length > 0) && (
                                 <button
-                                    onClick={clearAllFilters}
+                                    onClick={onClearAllFilters}
                                     className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
                                 >
                                     Clear All
@@ -466,7 +351,7 @@ export function TileView<T>({
                                         <ColumnFilter
                                             config={config}
                                             value={columnFilters[columnId]}
-                                            onChange={(filter) => handleColumnFilterChange(columnId, filter)}
+                                            onChange={(filter) => onColumnFilterChange(columnId, filter)}
                                             header={config.label || columnId}
                                         />
                                     </div>
@@ -478,9 +363,9 @@ export function TileView<T>({
             </div>
 
             {/* Tiles */}
-            {tileData.length > 0 ? (
+            {data.length > 0 ? (
                 <div className={tileContainerClassName}>
-                    {tileData.map((item: any) =>
+                    {data.map((item: any) =>
                         tileRenderer(item, generateActionButtons(item))
                     )}
                 </div>
@@ -504,14 +389,14 @@ export function TileView<T>({
                         <div className="flex items-center gap-2">
                             <button
                                 className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+                                onClick={() => onPageChange(Math.max(0, currentPage - 1))}
                                 disabled={currentPage === 0}
                             >
                                 Previous
                             </button>
                             <button
                                 className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
+                                onClick={() => onPageChange(Math.min(totalPages - 1, currentPage + 1))}
                                 disabled={currentPage >= totalPages - 1}
                             >
                                 Next
@@ -523,8 +408,7 @@ export function TileView<T>({
                             <select
                                 value={pageSize}
                                 onChange={(e) => {
-                                    setPageSize(Number(e.target.value));
-                                    setCurrentPage(0);
+                                    onPageSizeChange(Number(e.target.value));
                                 }}
                                 className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                             >
@@ -550,4 +434,5 @@ export function TileView<T>({
     );
 }
 
-// Export types for external use - already exported above with definitions
+// Export types for external use
+export type { TileViewProps };

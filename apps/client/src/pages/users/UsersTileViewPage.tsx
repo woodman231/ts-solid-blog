@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import { User } from '@blog/shared/src/models/User';
-import { TileView, TileRenderer, TileSortConfig } from '../../components/ui/TileView';
+import { EntityTileView, TileRenderer, TileSortConfig } from '../../components/ui/EntityTileView';
 import { ColumnFilterConfig } from '../../components/ui/ColumnFilter';
 import { ENTITY_TYPES } from '@blog/shared/src/index';
 import { UserIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
@@ -103,7 +103,7 @@ export function UsersTileViewPage() {
     );
 
     return (
-        <TileView
+        <EntityTileView
             entityType={ENTITY_TYPES.USERS}
             tileRenderer={tileRenderer}
             initialSorting={{ createdAt: 'desc' }}

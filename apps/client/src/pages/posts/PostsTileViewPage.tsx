@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Link } from '@tanstack/react-router';
 import { PostWithAuthor } from '@blog/shared/src/models/Post';
-import { TileView, TileActionConfig, TileRenderer, TileSortConfig } from '../../components/ui/TileView';
+import { EntityTileView, TileActionConfig, TileRenderer, TileSortConfig } from '../../components/ui/EntityTileView';
 import { ColumnFilterConfig } from '../../components/ui/ColumnFilter';
 import { DeletePostDialog } from '../../components/posts/DeletePostDialog';
 import { useAuthContext } from '../../contexts/AuthContext';
@@ -157,7 +157,7 @@ export function PostsTileViewPage() {
 
     return (
         <>
-            <TileView
+            <EntityTileView
                 entityType={ENTITY_TYPES.POSTS}
                 tileRenderer={tileRenderer}
                 initialSorting={{ createdAt: 'desc' }}
