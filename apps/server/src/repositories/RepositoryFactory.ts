@@ -180,7 +180,7 @@ export class RepositoryFactory {
     /**
      * Creates a generic repository for any entity with minimal configuration
      */
-    createGenericRepository<TShared, TPrisma, TDelegate extends PrismaModelDelegate>(
+    createGenericRepository<TShared extends Record<string, any>, TPrisma, TDelegate extends PrismaModelDelegate>(
         modelDelegate: TDelegate,
         mapToShared: (entity: TPrisma) => TShared,
         searchFields?: string[],

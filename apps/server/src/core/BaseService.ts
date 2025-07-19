@@ -29,15 +29,15 @@ export interface ServiceContext {
 /**
  * Base service interface that all services should implement
  */
-export interface IBaseService<T> {
-    getAll(options?: QueryOptions): Promise<PaginatedResult<T>>;
+export interface IBaseService<T extends Record<string, any> = Record<string, any>> {
+    getAll(options?: QueryOptions<T>): Promise<PaginatedResult<T>>;
     getById(id: string): Promise<T | null>;
     create(data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>): Promise<T>;
     update(id: string, data: Partial<T>): Promise<T>;
     delete(id: string): Promise<boolean>;
 
     // Context-aware methods with user authorization
-    getAllWithContext(context: ServiceContext, options?: QueryOptions): Promise<PaginatedResult<T>>;
+    getAllWithContext(context: ServiceContext, options?: QueryOptions<T>): Promise<PaginatedResult<T>>;
     getByIdWithContext(context: ServiceContext, id: string): Promise<T | null>;
     createWithContext(context: ServiceContext, data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>): Promise<T>;
     updateWithContext(context: ServiceContext, id: string, data: Partial<T>): Promise<T>;
@@ -47,7 +47,7 @@ export interface IBaseService<T> {
 /**
  * Configuration for the service factory
  */
-export interface ServiceConfig<T, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>> {
+export interface ServiceConfig<T extends Record<string, any> = Record<string, any>, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>> {
     /** The repository instance to use for data operations */
     repository: R;
 
@@ -73,7 +73,7 @@ export interface ServiceConfig<T, R extends IBaseRepository<T, any, PrismaModelD
 /**
  * Abstract base service that provides common operations
  */
-export abstract class BaseService<T, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>> implements IBaseService<T> {
+export abstract class BaseService<T extends Record<string, any>, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>> implements IBaseService<T> {
     protected config: ServiceConfig<T, R>;
 
     constructor(config: ServiceConfig<T, R>) {
@@ -87,7 +87,7 @@ export abstract class BaseService<T, R extends IBaseRepository<T, any, PrismaMod
         return this.config.repository;
     }
 
-    async getAll(options?: QueryOptions): Promise<PaginatedResult<T>> {
+    async getAll(options?: QueryOptions<T>): Promise<PaginatedResult<T>> {
         try {
             const result = await this.config.repository.findAll(options);
 
@@ -208,7 +208,7 @@ export abstract class BaseService<T, R extends IBaseRepository<T, any, PrismaMod
     }
 
     // Context-aware methods with user authorization
-    async getAllWithContext(context: ServiceContext, options?: QueryOptions): Promise<PaginatedResult<T>> {
+    async getAllWithContext(context: ServiceContext, options?: QueryOptions<T>): Promise<PaginatedResult<T>> {
         try {
             // Check authorization for read operation
             if (this.config.checkAuthorization) {
@@ -311,7 +311,7 @@ export abstract class BaseService<T, R extends IBaseRepository<T, any, PrismaMod
 /**
  * Factory function to create service instances
  */
-export function createService<T, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>>(config: ServiceConfig<T, R>): BaseService<T, R> {
+export function createService<T extends Record<string, any> = Record<string, any>, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>>(config: ServiceConfig<T, R>): BaseService<T, R> {
     return new (class extends BaseService<T, R> { })(config);
 }
 
@@ -322,7 +322,7 @@ export class ServiceFactory {
     /**
      * Create a basic service with minimal configuration
      */
-    createBasicService<T, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>>(repository: R): BaseService<T, R> {
+    createBasicService<T extends Record<string, any> = Record<string, any>, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>>(repository: R): BaseService<T, R> {
         return createService<T, R>({
             repository
         });
@@ -331,7 +331,7 @@ export class ServiceFactory {
     /**
      * Create a service with validation
      */
-    createValidatedService<T, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>>(
+    createValidatedService<T extends Record<string, any> = Record<string, any>, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>>(
         repository: R,
         validateCreate?: (data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void> | void,
         validateUpdate?: (id: string, data: Partial<T>) => Promise<void> | void
@@ -346,7 +346,7 @@ export class ServiceFactory {
     /**
      * Create a service with entity enrichment
      */
-    createEnrichedService<T, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>>(
+    createEnrichedService<T extends Record<string, any> = Record<string, any>, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>>(
         repository: R,
         enrichEntity: (entity: T) => Promise<T> | T
     ): BaseService<T, R> {
@@ -359,7 +359,7 @@ export class ServiceFactory {
     /**
      * Create a service with authorization
      */
-    createAuthorizedService<T, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>>(
+    createAuthorizedService<T extends Record<string, any> = Record<string, any>, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>>(
         repository: R,
         checkAuthorization: (userId: string, operation: string, entityId?: string) => Promise<boolean> | boolean
     ): BaseService<T, R> {
@@ -372,7 +372,7 @@ export class ServiceFactory {
     /**
      * Create a fully configured service
      */
-    createFullService<T, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>>(config: ServiceConfig<T, R>): BaseService<T, R> {
+    createFullService<T extends Record<string, any> = Record<string, any>, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>>(config: ServiceConfig<T, R>): BaseService<T, R> {
         return createService<T, R>(config);
     }
 }

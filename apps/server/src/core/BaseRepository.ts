@@ -52,8 +52,8 @@ export interface RepositoryConfig<TShared, TPrisma, TDelegate extends PrismaMode
     columnFieldMapping: Record<string, string>;
 }
 
-export interface IBaseRepository<TShared, TPrisma, TDelegate extends PrismaModelDelegate> {
-    findAll(options?: QueryOptions): Promise<PaginatedResult<TShared>>;
+export interface IBaseRepository<TShared extends Record<string, any>, TPrisma, TDelegate extends PrismaModelDelegate> {
+    findAll(options?: QueryOptions<TShared>): Promise<PaginatedResult<TShared>>;
     findById(id: string): Promise<TShared | null>;
     create(data: Omit<TShared, 'id' | 'createdAt' | 'updatedAt'>): Promise<TShared>;
     update(id: string, data: Partial<TShared>): Promise<TShared>;
@@ -63,7 +63,7 @@ export interface IBaseRepository<TShared, TPrisma, TDelegate extends PrismaModel
 /**
  * Abstract base repository that provides common CRUD operations
  */
-export abstract class BaseRepository<TShared, TPrisma, TDelegate extends PrismaModelDelegate> implements IBaseRepository<TShared, TPrisma, TDelegate> {
+export abstract class BaseRepository<TShared extends Record<string, any>, TPrisma, TDelegate extends PrismaModelDelegate> implements IBaseRepository<TShared, TPrisma, TDelegate> {
     protected config: RepositoryConfig<TShared, TPrisma, TDelegate>;
 
     constructor(
@@ -272,7 +272,7 @@ export abstract class BaseRepository<TShared, TPrisma, TDelegate extends PrismaM
 /**
  * Factory function to create repository instances
  */
-export function createRepository<TShared, TPrisma, TDelegate extends PrismaModelDelegate>(
+export function createRepository<TShared extends Record<string, any>, TPrisma, TDelegate extends PrismaModelDelegate>(
     prisma: PrismaClient,
     config: RepositoryConfig<TShared, TPrisma, TDelegate>
 ): BaseRepository<TShared, TPrisma, TDelegate> {

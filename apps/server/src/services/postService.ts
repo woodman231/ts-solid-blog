@@ -1,6 +1,6 @@
 import { IPostService } from '../core/interfaces/postService';
 import { IPostRepository } from '../core/interfaces/postRepository';
-import { Post, PostWithAuthor } from '@blog/shared/src/models/Post';
+import { Post, PostWithAuthor, CreatePost } from '@blog/shared/src/models/Post';
 import { QueryOptions, PaginatedResult } from '@blog/shared/src/types/pagination';
 import { BaseService, ServiceConfig, ServiceContext } from '../core/BaseService';
 
@@ -11,7 +11,7 @@ export class PostService extends BaseService<Post, IPostRepository> implements I
       checkAuthorization: async (userId: string, operation: string, entityId?: string): Promise<boolean> => {
         // For posts, we need to check if the user is the author
         if (operation === 'read') {
-          // Anyone can read posts (you can modify this based on your requirements)
+          // Anyone can read posts
           return true;
         }
 
