@@ -13,10 +13,10 @@ export type FilterOptions<T extends Record<string, any> = Record<string, any>> =
     globalSearch?: string;
 } & Partial<Record<keyof T, FilterValue>>;
 
-export interface QueryOptions {
+export interface QueryOptions<T extends Record<string, any> = Record<string, any>> {
     pagination?: PaginationOptions;
-    sort?: SortOptions;
-    filter?: FilterOptions;
+    sort?: SortOptions<T>;
+    filter?: FilterOptions<T>;
 }
 
 export interface PaginatedResult<T> {
