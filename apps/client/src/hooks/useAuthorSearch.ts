@@ -1,13 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSocketStore } from '../lib/socket';
-import { SearchAuthorsRequest } from '@blog/shared/src/socket/Request';
-import { SearchAuthorsResponse } from '@blog/shared/src/socket/Response';
-
-interface AuthorOption {
-    id: string;
-    displayName: string;
-}
+import { SelectListItem } from '@blog/shared/src/types/selectListItem';
+import { FetchEntitiesRequest, EntityDataResponse } from '@blog/shared/src/index';
+import { ENTITY_TYPES } from '@blog/shared/src/index';
+import { User } from '@blog/shared/src/index';
 
 export function useAuthorSearch() {
     const { sendRequest } = useSocketStore();
@@ -26,17 +23,27 @@ export function useAuthorSearch() {
     // Search authors query
     const { data: authors = [], isLoading, error } = useQuery({
         queryKey: ['searchAuthors', debouncedQuery],
-        queryFn: async (): Promise<AuthorOption[]> => {
-            const request: SearchAuthorsRequest = {
-                requestType: 'searchAuthors',
+        queryFn: async (): Promise<SelectListItem[]> => {
+            const request: FetchEntitiesRequest<User> = {
+                requestType: 'fetchEntities',
                 requestParams: {
-                    query: debouncedQuery,
+                    entityType: ENTITY_TYPES.USERS,
+                    page: 0,
                     limit: 20,
+                    sort: { displayName: 'asc' },
+                    filterOptions: {
+                        globalSearch: debouncedQuery.trim() || undefined,
+                    }
                 },
             };
 
-            const response = await sendRequest<SearchAuthorsRequest, SearchAuthorsResponse>(request);
-            return response.responseParams.authors;
+            const response = await sendRequest<FetchEntitiesRequest, EntityDataResponse<User>>(request);
+            const targetEntities = response.responseParams.entities.data[ENTITY_TYPES.USERS] || [];
+
+            return targetEntities.map(author => ({
+                value: author.id,
+                label: author.displayName,
+            }));
         },
         staleTime: 1000 * 60 * 5, // Cache for 5 minutes
         enabled: true, // Always enabled, will return all authors if no query

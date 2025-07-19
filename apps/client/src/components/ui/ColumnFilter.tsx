@@ -2,15 +2,16 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { FunnelIcon, ChevronDownIcon } from '@heroicons/react/20/solid';
 import type { FilterType, FilterOperator, FilterValue } from "@blog/shared/types/filters";
+import type { SelectListItem } from '@blog/shared/types/selectListItem';
 
-export interface ColumnFilterConfig<T = any> {
+export interface ColumnFilterConfig {
     type: FilterType;
     operators?: FilterOperator[];
-    lookupOptions?: Array<{ value: string; label: string }>; // For static lookup columns
+    lookupOptions?: Array<SelectListItem>; // For static lookup columns
     lookupSearchable?: boolean; // Whether lookup supports search
     useDynamicLookup?: boolean; // Whether to use dynamic lookup instead of static options
     dynamicLookupHook?: () => {
-        data: Array<T>;
+        data: Array<SelectListItem>;
         searchData: (query: string) => void;
         isLoading: boolean;
         error: any;
@@ -413,7 +414,7 @@ interface DynamicLookupSelectorProps<T = any> {
     };
 }
 
-function DynamicLookupSelector<T extends { id: string; displayName: string }>({ value, setValue, dynamicLookupHook }: DynamicLookupSelectorProps<T>) {
+function DynamicLookupSelector<T extends SelectListItem>({ value, setValue, dynamicLookupHook }: DynamicLookupSelectorProps<T>) {
     const [searchQuery, setSearchQuery] = useState('');
     const { data, searchData, isLoading } = dynamicLookupHook();
 
@@ -441,21 +442,21 @@ function DynamicLookupSelector<T extends { id: string; displayName: string }>({ 
                     <div className="px-2 py-2 text-sm text-gray-500">No results found</div>
                 )}
                 {!isLoading && data.map((item) => (
-                    <label key={item.id} className="flex items-center px-2 py-1 hover:bg-gray-50">
+                    <label key={item.value} className="flex items-center px-2 py-1 hover:bg-gray-50">
                         <input
                             type="checkbox"
-                            checked={Array.isArray(value) && value.includes(item.id)}
+                            checked={Array.isArray(value) && value.includes(item.value)}
                             onChange={(e) => {
                                 const currentValues = Array.isArray(value) ? value : [];
                                 if (e.target.checked) {
-                                    setValue([...currentValues, item.id]);
+                                    setValue([...currentValues, item.value]);
                                 } else {
-                                    setValue(currentValues.filter((v: any) => v !== item.id));
+                                    setValue(currentValues.filter((v: any) => v !== item.value));
                                 }
                             }}
                             className="mr-2"
                         />
-                        <span className="text-sm">{item.displayName}</span>
+                        <span className="text-sm">{item.label}</span>
                     </label>
                 ))}
             </div>

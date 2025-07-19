@@ -1,18 +1,17 @@
-import { FilterValue } from './filters';
+import type { FilterValue } from './filters';
 
 export interface PaginationOptions {
     page: number;
     limit: number;
 }
 
-export interface SortOptions {
-    [key: string]: 'asc' | 'desc';
-}
+export type SortOptions<T extends Record<string, any> = Record<string, any>> = {
+    [K in keyof T]?: 'asc' | 'desc';
+};
 
-export interface FilterOptions {
+export type FilterOptions<T extends Record<string, any> = Record<string, any>> = {
     globalSearch?: string;
-    [columnId: string]: FilterValue | string | undefined;
-}
+} & Partial<Record<keyof T, FilterValue>>;
 
 export interface QueryOptions {
     pagination?: PaginationOptions;

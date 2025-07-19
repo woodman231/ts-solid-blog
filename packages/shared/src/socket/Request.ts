@@ -21,15 +21,15 @@ export interface LoadPageRequest extends BaseRequest<LoadPageRequestParams> {
 }
 
 // Fetch entities
-export interface FetchEntitiesRequestParams extends BaseRequestParams {
+export interface FetchEntitiesRequestParams<T extends Record<string, any> = Record<string, any>> extends BaseRequestParams {
   entityType: EntityType;
-  filterOptions?: FilterOptions;
-  sort?: SortOptions;
+  filterOptions?: FilterOptions<T>;
+  sort?: SortOptions<T>;
   page?: number;
   limit?: number;
 }
 
-export interface FetchEntitiesRequest extends BaseRequest<FetchEntitiesRequestParams> {
+export interface FetchEntitiesRequest<T extends Record<string, any> = Record<string, any>> extends BaseRequest<FetchEntitiesRequestParams<T>> {
   requestType: 'fetchEntities';
 }
 
@@ -93,8 +93,4 @@ export function isUpdateEntityRequest(req: BaseRequest): req is UpdateEntityRequ
 
 export function isDeleteEntityRequest(req: BaseRequest): req is DeleteEntityRequest {
   return req.requestType === 'deleteEntity';
-}
-
-export function isSearchAuthorsRequest(req: BaseRequest): req is SearchAuthorsRequest {
-  return req.requestType === 'searchAuthors';
 }

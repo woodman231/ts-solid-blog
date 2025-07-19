@@ -23,7 +23,7 @@ export function CategoriesListPage() {
     const [isCreateCategoryErrorModalOpen, setIsCreateCategoryErrorModalOpen] = useState<boolean>(false);
 
     // Configure filters for tile view
-    const filterConfigs: Record<string, ColumnFilterConfig<Category>> = {
+    const filterConfigs: Record<string, ColumnFilterConfig> = {
         "name": {
             type: 'text',
             operators: ['contains', 'startsWith', 'endsWith'],

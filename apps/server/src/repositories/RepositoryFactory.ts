@@ -48,7 +48,15 @@ export class RepositoryFactory {
      */
     createCommentRepository() {
         const config: RepositoryConfig<Comment, any, PrismaModelDelegate> = {
-            delegate: (this.prisma as any).comment, // Assuming this exists in future            
+            delegate: (this.prisma as any).comment, // Assuming this exists in future
+            columnFieldMapping: {
+                id: 'id',
+                content: 'content',
+                postId: 'postId',
+                authorId: 'authorId',
+                createdAt: 'createdAt',
+                updatedAt: 'updatedAt'
+            },
             mapToShared: (comment: any): Comment => ({
                 id: comment.id,
                 content: comment.content,
@@ -74,7 +82,15 @@ export class RepositoryFactory {
      */
     createTagRepository() {
         const config: RepositoryConfig<Tag, any, PrismaModelDelegate> = {
-            delegate: (this.prisma as any).tag, // Assuming this exists in future            
+            delegate: (this.prisma as any).tag, // Assuming this exists in future
+            columnFieldMapping: {
+                id: 'id',
+                name: 'name',
+                description: 'description',
+                color: 'color',
+                createdAt: 'createdAt',
+                updatedAt: 'updatedAt'
+            },
             mapToShared: (tag: any): Tag => ({
                 id: tag.id,
                 name: tag.name,
@@ -100,7 +116,17 @@ export class RepositoryFactory {
      */
     createCategoryRepository() {
         const config: RepositoryConfig<Category, any, PrismaModelDelegate> = {
-            delegate: (this.prisma as any).category, // Assuming this exists in future            
+            delegate: (this.prisma as any).category, // Assuming this exists in future     
+            columnFieldMapping: {
+                id: 'id',
+                name: 'name',
+                slug: 'slug',
+                description: 'description',
+                parentId: 'parentId',
+                isActive: 'isActive',
+                createdAt: 'createdAt',
+                updatedAt: 'updatedAt'
+            },
             mapToShared: (category: any): Category => ({
                 id: category.id,
                 name: category.name,
@@ -162,6 +188,7 @@ export class RepositoryFactory {
     ) {
         const config: RepositoryConfig<TShared, TPrisma, TDelegate> = {
             delegate: modelDelegate,
+            columnFieldMapping: {}, // Should be defined based on the entity structure
             mapToShared,
             globalSearchConfig: searchFields ? {
                 searchFields: searchFields.map(field => ({ field }))
