@@ -4,8 +4,8 @@ import { SuccessResponse, ErrorResponse } from '@blog/shared/src/socket/Response
 import { IUserService } from '../../core/interfaces/userService';
 import { IPostService } from '../../core/interfaces/postService';
 import { ICategoryService } from '../../core/interfaces/categoryService';
-import { Post } from '@blog/shared/src/models/Post';
-import { Category, CreateCategory } from '@blog/shared/models/Category';
+import { CreatePost } from '@blog/shared/src/models/Post';
+import { CreateCategory } from '@blog/shared/models/Category';
 import { createServiceContext } from '../../core/BaseService';
 import { slugify } from '../../utils/slugify';
 
@@ -29,7 +29,7 @@ export async function handleCreateEntity(
         switch (entityType) {
             case 'posts':
                 // Validate required fields
-                const postData = entityData as Omit<Post, 'id' | 'authorId' | 'createdAt' | 'updatedAt'>;
+                const postData = entityData as CreatePost;
 
                 if (!postData.title || !postData.title.trim()) {
                     throw new Error('Post title is required');
@@ -47,7 +47,7 @@ export async function handleCreateEntity(
                 break;
 
             case 'category':
-                const categoryData = entityData as CreateCategory
+                const categoryData = entityData as CreateCategory;
 
                 if (!categoryData.name || !categoryData.name.trim()) {
                     throw new Error('Category Name is required');
@@ -56,7 +56,7 @@ export async function handleCreateEntity(
                 const categoryDataWithSlug: CreateCategory & { slug: string } = {
                     ...categoryData,
                     slug: slugify(categoryData.name),
-                    parentId: !!categoryData.parentId ? categoryData.parentId : undefined
+                    parentId: !!categoryData.parentId ? categoryData.parentId : undefined // empty string = undefined
                 };
 
                 const newCategory = await services.categoryService.createWithContext(context, categoryDataWithSlug);

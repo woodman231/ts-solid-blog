@@ -14,3 +14,5 @@ export interface PostWithAuthor extends Post {
     displayName: string;
   };
 }
+
+export type CreatePost = Omit<Post, 'id' | 'authorId' | 'createdAt' | 'updatedAt'>; // Server will generate id and timestamps
