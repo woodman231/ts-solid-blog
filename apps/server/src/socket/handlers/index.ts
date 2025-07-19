@@ -4,7 +4,6 @@ import { IPostService } from '../../core/interfaces/postService';
 import { ICategoryService } from '../../core/interfaces/categoryService';
 import {
   BaseRequest,
-  isLoadPageRequest,
   isFetchEntitiesRequest,
   isCreateEntityRequest,
   isUpdateEntityRequest,
@@ -12,7 +11,6 @@ import {
 } from '@blog/shared';
 import { RESPONSE_TYPES, ERROR_CODES } from '@blog/shared/src/constants/responseTypes';
 import { EntityServiceRegistry } from '../registry/entityRegistry';
-import { handleLoadPage } from './loadPageHandler';
 import { handleFetchEntities } from './fetchEntitiesHandler';
 import { handleCreateEntity } from './createEntityHandler';
 import { handleUpdateEntity } from './updateEntityHandler';
@@ -55,11 +53,8 @@ export function setupEventHandlers(socket: Socket, services: Services): void {
         return;
       }
 
-      // Route request to appropriate handler based on request type
-      if (isLoadPageRequest(request)) {
-        await handleLoadPage(socket, request, callback, services);
-      }
-      else if (isFetchEntitiesRequest(request)) {
+      // Route request to appropriate handler based on request type      
+      if (isFetchEntitiesRequest(request)) {
         await handleFetchEntities(socket, request, callback, entityServices);
       }
       else if (isCreateEntityRequest(request)) {

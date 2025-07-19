@@ -75,10 +75,6 @@ export interface SearchAuthorsRequest extends BaseRequest<SearchAuthorsRequestPa
 }
 
 // Type guards
-export function isLoadPageRequest(req: BaseRequest): req is LoadPageRequest {
-  return req.requestType === 'loadPage';
-}
-
 export function isFetchEntitiesRequest(req: BaseRequest): req is FetchEntitiesRequest {
   return req.requestType === 'fetchEntities';
 }
