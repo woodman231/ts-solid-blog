@@ -84,7 +84,8 @@ export function MainLayout() {
         { name: 'Home', href: '/' },
         ...(isAuthenticated ? [
             { name: 'Users', href: '/users' },
-            { name: 'Posts', href: '/posts' }
+            { name: 'Posts', href: '/posts' },
+            { name: 'Categories', href: '/categories' },
         ] : []),
     ];
 

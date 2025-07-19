@@ -17,13 +17,42 @@ model User {
   posts         Post[]
 }
 
+model Category {
+  id            String      @id @default(uuid())
+  name          String      @unique
+  slug          String      @unique
+  description   String?
+  parentId      String?
+  parent        Category?   @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children      Category[]  @relation("CategoryHierarchy")
+  posts         PostCategory[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([parentId])
+}
+
 model Post {
-  id            String    @id @default(uuid())
+  id            String          @id @default(uuid())
   title         String
   description   String
   body          String
   authorId      String
-  author        User      @relation(fields: [authorId], references: [id])
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  author        User            @relation(fields: [authorId], references: [id])
+  categories    PostCategory[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model PostCategory {
+  id         String   @id @default(uuid())
+  postId     String
+  categoryId String
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([postId, categoryId])
+  @@index([postId])
+  @@index([categoryId])
 }

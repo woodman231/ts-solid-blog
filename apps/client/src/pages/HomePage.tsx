@@ -30,16 +30,22 @@ export function HomePage() {
                             </p>
                             <div className="flex gap-4">
                                 <Link
+                                    to="/users"
+                                    className="rounded-md bg-gray-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600"
+                                >
+                                    Browse Users
+                                </Link>
+                                <Link
                                     to="/posts"
                                     className="rounded-md bg-primary-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
                                 >
                                     Browse Posts
                                 </Link>
                                 <Link
-                                    to="/users"
-                                    className="rounded-md bg-gray-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600"
+                                    to="/categories"
+                                    className="rounded-md bg-green-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600"
                                 >
-                                    Browse Users
+                                    Browse Categories
                                 </Link>
                             </div>
                         </div>

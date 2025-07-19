@@ -1,4 +1,4 @@
-import { PrismaClient, Post as PrismaPost, User as PrismaUser, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { Post, PostWithAuthor } from '@blog/shared/src/models/Post';
 import { IPostRepository } from '../core/interfaces/postRepository';
 import { BaseRepository, RepositoryConfig } from '../core/BaseRepository';

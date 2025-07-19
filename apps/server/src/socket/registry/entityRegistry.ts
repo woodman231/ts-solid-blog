@@ -1,5 +1,6 @@
 import { IUserService } from '../../core/interfaces/userService';
 import { IPostService } from '../../core/interfaces/postService';
+import { ICategoryService } from '../../core/interfaces/categoryService';
 import { QueryOptions, PaginatedResult } from '@blog/shared/src/types/pagination';
 import { ENTITY_TYPES, EntityType } from '@blog/shared/src/constants/entityTypes';
 import { ServiceContext } from '../../core/BaseService';
@@ -10,6 +11,7 @@ import { ServiceContext } from '../../core/BaseService';
 export interface EntityServiceRegistry {
     userService: IUserService;
     postService: IPostService;
+    categoryService: ICategoryService;
 }
 
 /**
@@ -31,6 +33,10 @@ export const ENTITY_FETCHERS: Record<EntityType, EntityFetcher> = {
 
     [ENTITY_TYPES.POSTS]: async (services, context, options) => {
         return await services.postService.getAllPostsWithContext(context, options);
+    },
+
+    [ENTITY_TYPES.CATEGORIES]: async (services, context, options) => {
+        return await services.categoryService.getAll(options);
     }
 };
 

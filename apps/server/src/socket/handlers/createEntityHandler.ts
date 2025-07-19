@@ -3,7 +3,9 @@ import { CreateEntityRequest } from '@blog/shared/src/socket/Request';
 import { SuccessResponse, ErrorResponse } from '@blog/shared/src/socket/Response';
 import { IUserService } from '../../core/interfaces/userService';
 import { IPostService } from '../../core/interfaces/postService';
+import { ICategoryService } from '../../core/interfaces/categoryService';
 import { Post } from '@blog/shared/src/models/Post';
+import { Category } from '@blog/shared/models/Category';
 import { createServiceContext } from '../../core/BaseService';
 
 export async function handleCreateEntity(
@@ -13,6 +15,7 @@ export async function handleCreateEntity(
     services: {
         userService: IUserService;
         postService: IPostService;
+        categoryService: ICategoryService;
     }
 ): Promise<void> {
     const { entityType, entityData } = request.requestParams;
@@ -41,6 +44,23 @@ export async function handleCreateEntity(
                     }
                 });
                 break;
+
+            case 'category':
+                const categoryData = entityData as Omit<Category, "id" | "createdAt" | "updatedAt">
+
+                if (!categoryData.name || !categoryData.name.trim()) {
+                    throw new Error('Category Name is required');
+                }
+
+                const newCategory = await services.categoryService.createWithContext(context, categoryData);
+
+                callback({
+                    responseType: 'success',
+                    responseParams: {
+                        message: 'Category created successfully',
+                        data: { category: newCategory }
+                    }
+                });
 
             default:
                 throw new Error(`Creating ${entityType} is not supported`);

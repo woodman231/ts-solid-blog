@@ -13,6 +13,7 @@ import { PostsTileViewPage } from './pages/posts/PostsTileViewPage';
 import { UsersTileViewPage } from './pages/users/UsersTileViewPage';
 import { ModalExamples } from './components/ui/ModalExamples';
 import { FormModalExamples } from './components/ui/FormModalExamples';
+import { CategoriesListPage } from './pages/categories/CategoriesListPage';
 
 // Define routes with authentication guards
 const rootRoute = createRootRoute();
@@ -124,6 +125,26 @@ const formModalExamplesRoute = createRoute({
     component: FormModalExamples,
 });
 
+// Categories routes - protected
+const categoriesRoute = createRoute({
+    getParentRoute: () => layoutRoute,
+    path: 'categories',
+    beforeLoad: authGuard,
+});
+
+const categoriesListRoute = createRoute({
+    getParentRoute: () => categoriesRoute,
+    path: '/',
+    component: CategoriesListPage,
+});
+
+// Place holder for category details route
+const categoryDetailsRoute = createRoute({
+    getParentRoute: () => categoriesRoute,
+    path: '$categoryId',
+    component: () => <div>Coming Soon!</div>,
+});
+
 // 404 route
 const notFoundRoute = createRoute({
     getParentRoute: () => rootRoute,
@@ -148,6 +169,10 @@ export const routeTree = rootRoute.addChildren([
             postDetailsRoute,
             createPostRoute,
             editPostRoute,
+        ]),
+        categoriesRoute.addChildren([
+            categoriesListRoute,
+            categoryDetailsRoute, // Placeholder for future category details page
         ]),
     ]),
     notFoundRoute,

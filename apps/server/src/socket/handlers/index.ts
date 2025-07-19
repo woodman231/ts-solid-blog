@@ -1,6 +1,7 @@
 import { Socket } from 'socket.io';
 import { IUserService } from '../../core/interfaces/userService';
 import { IPostService } from '../../core/interfaces/postService';
+import { ICategoryService } from '../../core/interfaces/categoryService';
 import {
   BaseRequest,
   isLoadPageRequest,
@@ -23,13 +24,15 @@ import { logger } from '../../utils/logger';
 interface Services {
   userService: IUserService;
   postService: IPostService;
+  categoryService: ICategoryService;
 }
 
 export function setupEventHandlers(socket: Socket, services: Services): void {
   // Create entity service registry
   const entityServices: EntityServiceRegistry = {
     userService: services.userService,
-    postService: services.postService
+    postService: services.postService,
+    categoryService: services.categoryService
   };
   // Main request handler
   socket.on('request', async (request: BaseRequest, callback) => {

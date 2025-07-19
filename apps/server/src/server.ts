@@ -11,8 +11,10 @@ import { logger } from './utils/logger';
 import { Container } from './core/container';
 import { UserRepository } from './repositories/userRepository';
 import { PostRepository } from './repositories/postRepository';
+import { CategoryRepository } from './repositories/categoryRepository';
 import { UserService } from './services/userService';
 import { PostService } from './services/postService';
+import { CategoryService } from './services/categoryService';
 import { AuthService } from './services/authService';
 import { IAuthService } from './core/interfaces/authService';
 
@@ -55,6 +57,7 @@ export async function createServer() {
   // Register repositories
   container.register('userRepository', new UserRepository(prisma));
   container.register('postRepository', new PostRepository(prisma));
+  container.register('categoryRepository', new CategoryRepository(prisma));
 
   // Register services
   container.register('authService', new AuthService(
@@ -66,6 +69,7 @@ export async function createServer() {
 
   container.register('userService', new UserService(container.get('userRepository')));
   container.register('postService', new PostService(container.get('postRepository')));
+  container.register('categoryService', new CategoryService(container.get('categoryRepository')));
 
   // Set up authentication middleware
   setupAuthentication(app, container.get('authService'));
