@@ -6,7 +6,7 @@ type WhereCondition = { [key: string]: any };
 // Helper functions for parsing column filters
 export function parseColumnFilters(
     filters: FilterOptions,
-    columnFieldMapping?: Record<string, string>
+    columnFieldMapping: Record<string, string>
 ): { where: WhereCondition; globalSearch?: string } {
     const where: WhereCondition = {};
     let globalSearch: string | undefined;
@@ -67,26 +67,8 @@ function parseDate(value: any, isEndOfDay: boolean = false): Date {
     throw new Error(`Cannot parse date from value: ${value}`);
 }
 
-function mapColumnToField(columnId: string, columnFieldMapping?: Record<string, string>): string | null {
-    // Use provided mapping if available, otherwise fall back to default mapping
-    const mapping = columnFieldMapping || getDefaultColumnFieldMapping();
-    return mapping[columnId] || null;
-}
-
-function getDefaultColumnFieldMapping(): Record<string, string> {
-    // Default mapping for backward compatibility
-    return {
-        'title': 'title',
-        'description': 'description',
-        'body': 'body',
-        'createdAt': 'createdAt',
-        'updatedAt': 'updatedAt',
-        'author.displayName': 'author.displayName',
-        'author.email': 'author.email',
-        'authorId': 'authorId',
-        'displayName': 'displayName',
-        'email': 'email',
-    };
+function mapColumnToField(columnId: string, columnFieldMapping: Record<string, string>): string | null {
+    return columnFieldMapping[columnId] || null;
 }
 
 function buildWhereCondition(fieldPath: string, filter: FilterValue): WhereCondition | null {

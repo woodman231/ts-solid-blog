@@ -7,3 +7,5 @@ export interface Category {
     createdAt: string;
     updatedAt: string;
 }
+
+export type CreateCategory = Omit<Category, 'id' | 'createdAt' | 'slug' | 'updatedAt'>; // Server will generate slug

@@ -5,8 +5,9 @@ import { IUserService } from '../../core/interfaces/userService';
 import { IPostService } from '../../core/interfaces/postService';
 import { ICategoryService } from '../../core/interfaces/categoryService';
 import { Post } from '@blog/shared/src/models/Post';
-import { Category } from '@blog/shared/models/Category';
+import { Category, CreateCategory } from '@blog/shared/models/Category';
 import { createServiceContext } from '../../core/BaseService';
+import { slugify } from '../../utils/slugify';
 
 export async function handleCreateEntity(
     socket: Socket,
@@ -46,13 +47,19 @@ export async function handleCreateEntity(
                 break;
 
             case 'category':
-                const categoryData = entityData as Omit<Category, "id" | "createdAt" | "updatedAt">
+                const categoryData = entityData as CreateCategory
 
                 if (!categoryData.name || !categoryData.name.trim()) {
                     throw new Error('Category Name is required');
                 }
 
-                const newCategory = await services.categoryService.createWithContext(context, categoryData);
+                const categoryDataWithSlug: CreateCategory & { slug: string } = {
+                    ...categoryData,
+                    slug: slugify(categoryData.name),
+                    parentId: !!categoryData.parentId ? categoryData.parentId : undefined
+                };
+
+                const newCategory = await services.categoryService.createWithContext(context, categoryDataWithSlug);
 
                 callback({
                     responseType: 'success',

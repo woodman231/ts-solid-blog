@@ -22,6 +22,15 @@ export class CategoryRepository extends BaseRepository<Category, CategoryPayload
         const config: RepositoryConfig<Category, CategoryPayload, PrismaClient['category']> = {
             delegate: prisma.category,
             selector: categorySelector,
+            columnFieldMapping: {
+                id: 'id',
+                name: 'name',
+                slug: 'slug',
+                description: 'description',
+                parentId: 'parentId',
+                createdAt: 'createdAt',
+                updatedAt: 'updatedAt',
+            },
             mapToShared: (category: CategoryPayload): Category => ({
                 id: category.id,
                 name: category.name,

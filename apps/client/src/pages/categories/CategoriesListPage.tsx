@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Link } from '@tanstack/react-router';
-import { Category } from '@blog/shared/src/models/Category';
+import { Category, CreateCategory } from '@blog/shared/src/models/Category';
 import { EntityTileView, TileActionConfig, TileRenderer, TileSortConfig } from '../../components/ui/EntityTileView';
 import { ColumnFilterConfig } from '../../components/ui/ColumnFilter';
 import { DeleteCategoryDialog } from '../../components/categories/DeleteCategoryDialog';
@@ -127,19 +127,16 @@ export function CategoriesListPage() {
         setIsCreateCategoryDialogOpen(false);
     }
 
-    const onSubmitCreateNewCategoryDialog = async (categoryName: string) => {
+    const onSubmitCreateNewCategoryDialog = async (categoryDetails: CreateCategory) => {
         setIsCreatingCategory(true);
         setCreateCategoryError(null);
 
         try {
-            const request: CreateEntityRequest<Omit<Category, "id" | "createdAt" | "updatedAt">> = {
+            const request: CreateEntityRequest<CreateCategory> = {
                 requestType: 'createEntity',
                 requestParams: {
                     entityType: 'category',
-                    entityData: {
-                        name: categoryName,
-                        slug: categoryName,
-                    },
+                    entityData: categoryDetails,
                 },
             };
 
@@ -202,6 +199,7 @@ export function CategoriesListPage() {
                     isOpen={isCreateCategoryDialogOpen}
                     onClose={onCloseCreateNewCategoryDialog}
                     onSubmit={onSubmitCreateNewCategoryDialog}
+                    isSubmitting={isCreatingCategory}
                 />
             )}
             {(isCreateCategoryErrorModalOpen && createCategoryError) && (

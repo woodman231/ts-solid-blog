@@ -49,7 +49,7 @@ export interface RepositoryConfig<TShared, TPrisma, TDelegate extends PrismaMode
     defaultSort?: Record<string, 'asc' | 'desc'>;
 
     /** Custom column to field mapping for filtering */
-    columnFieldMapping?: Record<string, string>;
+    columnFieldMapping: Record<string, string>;
 }
 
 export interface IBaseRepository<TShared, TPrisma, TDelegate extends PrismaModelDelegate> {
