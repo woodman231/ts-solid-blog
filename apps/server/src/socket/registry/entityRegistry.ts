@@ -28,14 +28,17 @@ export type EntityFetcher<T = any> = (
  */
 export const ENTITY_FETCHERS: Record<EntityType, EntityFetcher> = {
     [ENTITY_TYPES.USERS]: async (services, context, options) => {
+        services.userService.setContext(context);
         return await services.userService.getAll(options);
     },
 
     [ENTITY_TYPES.POSTS]: async (services, context, options) => {
-        return await services.postService.getAllPostsWithContext(context, options);
+        services.postService.setContext(context);
+        return await services.postService.getAll(options);
     },
 
     [ENTITY_TYPES.CATEGORIES]: async (services, context, options) => {
+        services.categoryService.setContext(context);
         return await services.categoryService.getAll(options);
     }
 };

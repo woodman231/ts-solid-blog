@@ -28,7 +28,7 @@ export class UserRepository extends BaseRepository<User, UserPayload, PrismaClie
         createdAt: user.createdAt.toISOString(),
         updatedAt: user.updatedAt.toISOString()
       }),
-      mapToCreateInput: (data: Omit<User, 'id' | 'createdAt' | 'updatedAt'>) => ({
+      mapToCreateInput: (data: Partial<User>) => ({
         displayName: data.displayName,
         email: data.email
       }),

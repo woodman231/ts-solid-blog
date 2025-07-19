@@ -44,19 +44,18 @@ export class PostRepository extends BaseRepository<PostWithAuthor, PostWithAutho
           displayName: post.author.displayName,
         }
       }),
-      mapToCreateInput: (data: Omit<Post, 'id' | 'createdAt' | 'updatedAt'>) => ({
+      mapToCreateInput: (data: Partial<PostWithAuthor>) => ({
         title: data.title,
         description: data.description,
         body: data.body,
         authorId: data.authorId,
       }),
-      mapToUpdateInput: (data: Partial<Post>) => {
+      mapToUpdateInput: (data: Partial<PostWithAuthor>) => {
         const updateData: any = {};
         if (data.title !== undefined) updateData.title = data.title;
         if (data.description !== undefined) updateData.description = data.description;
         if (data.body !== undefined) updateData.body = data.body;
-        // Note: typically you wouldn't allow updating authorId, but keeping for flexibility
-        if (data.authorId !== undefined) updateData.authorId = data.authorId;
+
         return updateData;
       },
       globalSearchConfig: {
@@ -84,7 +83,7 @@ export class PostRepository extends BaseRepository<PostWithAuthor, PostWithAutho
   }
 
   // Additional methods specific to Post
-  async findByAuthorId(authorId: string): Promise<Post[]> {
+  async findByAuthorId(authorId: string): Promise<PostWithAuthor[]> {
     try {
       const posts = await this.config.delegate.findMany({
         select: this.config.selector,
@@ -128,7 +127,7 @@ export class PostRepository extends BaseRepository<PostWithAuthor, PostWithAutho
   }
 
   // Method to find posts by title (exact or partial match)
-  async findByTitle(title: string, exact: boolean = false): Promise<Post[]> {
+  async findByTitle(title: string, exact: boolean = false): Promise<PostWithAuthor[]> {
     try {
       const whereCondition = exact
         ? { title: { equals: title } }
@@ -148,7 +147,7 @@ export class PostRepository extends BaseRepository<PostWithAuthor, PostWithAutho
   }
 
   // Method to get recent posts
-  async findRecent(limit: number = 10): Promise<Post[]> {
+  async findRecent(limit: number = 10): Promise<PostWithAuthor[]> {
     try {
       const posts = await this.config.delegate.findMany({
         select: this.config.selector,

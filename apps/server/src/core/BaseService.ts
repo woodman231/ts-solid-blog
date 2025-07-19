@@ -32,27 +32,26 @@ export interface ServiceContext {
 export interface IBaseService<T extends Record<string, any> = Record<string, any>> {
     getAll(options?: QueryOptions<T>): Promise<PaginatedResult<T>>;
     getById(id: string): Promise<T | null>;
-    create(data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>): Promise<T>;
+    create(data: Partial<T>): Promise<T>;
     update(id: string, data: Partial<T>): Promise<T>;
     delete(id: string): Promise<boolean>;
 
-    // Context-aware methods with user authorization
-    getAllWithContext(context: ServiceContext, options?: QueryOptions<T>): Promise<PaginatedResult<T>>;
-    getByIdWithContext(context: ServiceContext, id: string): Promise<T | null>;
-    createWithContext(context: ServiceContext, data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>): Promise<T>;
-    updateWithContext(context: ServiceContext, id: string, data: Partial<T>): Promise<T>;
-    deleteWithContext(context: ServiceContext, id: string): Promise<boolean>;
+    setContext(context: ServiceContext): void;
+    getContext(): ServiceContext | undefined;
 }
 
 /**
  * Configuration for the service factory
  */
-export interface ServiceConfig<T extends Record<string, any> = Record<string, any>, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>> {
+export interface ServiceConfig<
+    T extends Record<string, any> = Record<string, any>,
+    R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>
+> {
     /** The repository instance to use for data operations */
     repository: R;
 
     /** Optional validation function for create operations */
-    validateCreate?: (data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void> | void;
+    validateCreate?: (data: Partial<T>) => Promise<void> | void;
 
     /** Optional validation function for update operations */
     validateUpdate?: (id: string, data: Partial<T>) => Promise<void> | void;
@@ -75,6 +74,7 @@ export interface ServiceConfig<T extends Record<string, any> = Record<string, an
  */
 export abstract class BaseService<T extends Record<string, any>, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>> implements IBaseService<T> {
     protected config: ServiceConfig<T, R>;
+    protected context?: ServiceContext;
 
     constructor(config: ServiceConfig<T, R>) {
         this.config = config;
@@ -87,8 +87,30 @@ export abstract class BaseService<T extends Record<string, any>, R extends IBase
         return this.config.repository;
     }
 
+    setContext(context: ServiceContext): void {
+        this.context = context;
+    }
+
+    getContext(): ServiceContext | undefined {
+        return this.context;
+    }
+
     async getAll(options?: QueryOptions<T>): Promise<PaginatedResult<T>> {
+        const context = this.getContext();
+
         try {
+            if (!context) {
+                throw new Error('Service context is not set');
+            }
+
+            // Check authorization for read operation
+            if (this.config.checkAuthorization) {
+                const authorized = await this.config.checkAuthorization(context.userId, 'read');
+                if (!authorized) {
+                    throw new Error('Unauthorized: You do not have permission to view this resource');
+                }
+            }
+
             const result = await this.config.repository.findAll(options);
 
             // Enrich entities if enrichment function is provided
@@ -106,13 +128,27 @@ export abstract class BaseService<T extends Record<string, any>, R extends IBase
 
             return result;
         } catch (error: any) {
-            this.handleError(error, 'getAll', { options });
+            this.handleError(error, 'getAll', { context, options });
             throw error;
         }
     }
 
     async getById(id: string): Promise<T | null> {
+        const context = this.getContext();
+
         try {
+            if (!context) {
+                throw new Error('Service context is not set');
+            }
+
+            // Check authorization for read operation
+            if (this.config.checkAuthorization) {
+                const authorized = await this.config.checkAuthorization(context.userId, 'read', id);
+                if (!authorized) {
+                    throw new Error('Unauthorized: You do not have permission to view this resource');
+                }
+            }
+
             let entity = await this.config.repository.findById(id);
 
             if (!entity) return null;
@@ -129,13 +165,25 @@ export abstract class BaseService<T extends Record<string, any>, R extends IBase
 
             return entity;
         } catch (error: any) {
-            this.handleError(error, 'getById', { id });
+            this.handleError(error, 'getById', { context, id });
             throw error;
         }
     }
 
-    async create(data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>): Promise<T> {
+    async create(data: Partial<T>): Promise<T> {
+        const context = this.getContext();
         try {
+            if (!context) {
+                throw new Error('Service context is not set');
+            }
+            // Check authorization for create operation
+            if (this.config.checkAuthorization) {
+                const authorized = await this.config.checkAuthorization(context.userId, 'create');
+                if (!authorized) {
+                    throw new Error('Unauthorized: You do not have permission to create this resource');
+                }
+            }
+
             // Validate if validation function is provided
             if (this.config.validateCreate) {
                 await this.config.validateCreate(data);
@@ -161,106 +209,17 @@ export abstract class BaseService<T extends Record<string, any>, R extends IBase
 
             return entity;
         } catch (error: any) {
-            this.handleError(error, 'create', { data });
+            this.handleError(error, 'create', { context, data });
             throw error;
         }
     }
 
     async update(id: string, data: Partial<T>): Promise<T> {
+        const context = this.getContext();
         try {
-            // Validate if validation function is provided
-            if (this.config.validateUpdate) {
-                await this.config.validateUpdate(id, data);
+            if (!context) {
+                throw new Error('Service context is not set');
             }
-
-            // Transform before save if function is provided
-            let transformedData = data;
-            if (this.config.transformBeforeSave) {
-                transformedData = this.config.transformBeforeSave(data);
-            }
-
-            let entity = await this.config.repository.update(id, transformedData);
-
-            // Enrich entity if enrichment function is provided
-            if (this.config.enrichEntity) {
-                entity = await this.config.enrichEntity(entity);
-            }
-
-            // Transform after retrieval if function is provided
-            if (this.config.transformAfterRetrieval) {
-                entity = this.config.transformAfterRetrieval(entity);
-            }
-
-            return entity;
-        } catch (error: any) {
-            this.handleError(error, 'update', { id, data });
-            throw error;
-        }
-    }
-
-    async delete(id: string): Promise<boolean> {
-        try {
-            return await this.config.repository.delete(id);
-        } catch (error: any) {
-            this.handleError(error, 'delete', { id });
-            throw error;
-        }
-    }
-
-    // Context-aware methods with user authorization
-    async getAllWithContext(context: ServiceContext, options?: QueryOptions<T>): Promise<PaginatedResult<T>> {
-        try {
-            // Check authorization for read operation
-            if (this.config.checkAuthorization) {
-                const authorized = await this.config.checkAuthorization(context.userId, 'read');
-                if (!authorized) {
-                    throw new Error('Unauthorized: You do not have permission to view this resource');
-                }
-            }
-
-            return await this.getAll(options);
-        } catch (error: any) {
-            this.handleError(error, 'getAllWithContext', { context, options });
-            throw error;
-        }
-    }
-
-    async getByIdWithContext(context: ServiceContext, id: string): Promise<T | null> {
-        try {
-            // Check authorization for read operation
-            if (this.config.checkAuthorization) {
-                const authorized = await this.config.checkAuthorization(context.userId, 'read', id);
-                if (!authorized) {
-                    throw new Error('Unauthorized: You do not have permission to view this resource');
-                }
-            }
-
-            return await this.getById(id);
-        } catch (error: any) {
-            this.handleError(error, 'getByIdWithContext', { context, id });
-            throw error;
-        }
-    }
-
-    async createWithContext(context: ServiceContext, data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>): Promise<T> {
-        try {
-            // Check authorization for create operation
-            if (this.config.checkAuthorization) {
-                const authorized = await this.config.checkAuthorization(context.userId, 'create');
-                if (!authorized) {
-                    throw new Error('Unauthorized: You do not have permission to create this resource');
-                }
-            }
-
-            return await this.create(data);
-        } catch (error: any) {
-            this.handleError(error, 'createWithContext', { context, data });
-            throw error;
-        }
-    }
-
-    async updateWithContext(context: ServiceContext, id: string, data: Partial<T>): Promise<T> {
-        try {
             // Check authorization for update operation
             if (this.config.checkAuthorization) {
                 const authorized = await this.config.checkAuthorization(context.userId, 'update', id);
@@ -271,13 +230,17 @@ export abstract class BaseService<T extends Record<string, any>, R extends IBase
 
             return await this.update(id, data);
         } catch (error: any) {
-            this.handleError(error, 'updateWithContext', { context, id, data });
+            this.handleError(error, 'update', { context, id, data });
             throw error;
         }
     }
 
-    async deleteWithContext(context: ServiceContext, id: string): Promise<boolean> {
+    async delete(id: string): Promise<boolean> {
+        const context = this.getContext();
         try {
+            if (!context) {
+                throw new Error('Service context is not set');
+            }
             // Check authorization for delete operation
             if (this.config.checkAuthorization) {
                 const authorized = await this.config.checkAuthorization(context.userId, 'delete', id);
@@ -288,7 +251,7 @@ export abstract class BaseService<T extends Record<string, any>, R extends IBase
 
             return await this.delete(id);
         } catch (error: any) {
-            this.handleError(error, 'deleteWithContext', { context, id });
+            this.handleError(error, 'delete', { context, id });
             throw error;
         }
     }
@@ -307,111 +270,3 @@ export abstract class BaseService<T extends Record<string, any>, R extends IBase
         // For example, transform specific repository errors to service-level errors
     }
 }
-
-/**
- * Factory function to create service instances
- */
-export function createService<T extends Record<string, any> = Record<string, any>, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>>(config: ServiceConfig<T, R>): BaseService<T, R> {
-    return new (class extends BaseService<T, R> { })(config);
-}
-
-/**
- * Service factory class for more complex service creation
- */
-export class ServiceFactory {
-    /**
-     * Create a basic service with minimal configuration
-     */
-    createBasicService<T extends Record<string, any> = Record<string, any>, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>>(repository: R): BaseService<T, R> {
-        return createService<T, R>({
-            repository
-        });
-    }
-
-    /**
-     * Create a service with validation
-     */
-    createValidatedService<T extends Record<string, any> = Record<string, any>, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>>(
-        repository: R,
-        validateCreate?: (data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void> | void,
-        validateUpdate?: (id: string, data: Partial<T>) => Promise<void> | void
-    ): BaseService<T, R> {
-        return createService<T, R>({
-            repository,
-            validateCreate,
-            validateUpdate
-        });
-    }
-
-    /**
-     * Create a service with entity enrichment
-     */
-    createEnrichedService<T extends Record<string, any> = Record<string, any>, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>>(
-        repository: R,
-        enrichEntity: (entity: T) => Promise<T> | T
-    ): BaseService<T, R> {
-        return createService<T, R>({
-            repository,
-            enrichEntity
-        });
-    }
-
-    /**
-     * Create a service with authorization
-     */
-    createAuthorizedService<T extends Record<string, any> = Record<string, any>, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>>(
-        repository: R,
-        checkAuthorization: (userId: string, operation: string, entityId?: string) => Promise<boolean> | boolean
-    ): BaseService<T, R> {
-        return createService<T, R>({
-            repository,
-            checkAuthorization
-        });
-    }
-
-    /**
-     * Create a fully configured service
-     */
-    createFullService<T extends Record<string, any> = Record<string, any>, R extends IBaseRepository<T, any, PrismaModelDelegate> = IBaseRepository<T, any, PrismaModelDelegate>>(config: ServiceConfig<T, R>): BaseService<T, R> {
-        return createService<T, R>(config);
-    }
-}
-
-/**
- * Example usage:
- * 
- * const serviceFactory = new ServiceFactory();
- * 
- * // Basic service
- * const basicUserService = serviceFactory.createBasicService(userRepository);
- * 
- * // Service with validation
- * const validatedPostService = serviceFactory.createValidatedService(
- *   postRepository,
- *   async (data) => {
- *     if (!data.title || data.title.length < 3) {
- *       throw new Error('Title must be at least 3 characters');
- *     }
- *   },
- *   async (id, data) => {
- *     if (data.title && data.title.length < 3) {
- *       throw new Error('Title must be at least 3 characters');
- *     }
- *   }
- * );
- * 
- * // Service with enrichment (for example, adding author info to posts)
- * const enrichedPostService = serviceFactory.createEnrichedService(
- *   postRepository,
- *   async (post) => {
- *     const author = await userRepository.findById(post.authorId);
- *     return {
- *       ...post,
- *       author: {
- *         id: author?.id || post.authorId,
- *         displayName: author?.displayName || 'Unknown Author'
- *       }
- *     };
- *   }
- * );
- */

@@ -35,7 +35,8 @@ export async function handleCreateEntity(
                     throw new Error('Post title is required');
                 }
 
-                const newPost = await services.postService.createPostWithContext(context, postData);
+                services.postService.setContext(context);
+                const newPost = await services.postService.create(postData);
 
                 callback({
                     responseType: 'success',
@@ -59,7 +60,8 @@ export async function handleCreateEntity(
                     parentId: !!categoryData.parentId ? categoryData.parentId : undefined // empty string = undefined
                 };
 
-                const newCategory = await services.categoryService.createWithContext(context, categoryDataWithSlug);
+                services.categoryService.setContext(context);
+                const newCategory = await services.categoryService.create(categoryDataWithSlug);
 
                 callback({
                     responseType: 'success',

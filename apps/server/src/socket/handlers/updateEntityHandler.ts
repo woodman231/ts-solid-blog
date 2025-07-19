@@ -4,7 +4,7 @@ import { SuccessResponse, ErrorResponse } from '@blog/shared/src/socket/Response
 import { IUserService } from '../../core/interfaces/userService';
 import { IPostService } from '../../core/interfaces/postService';
 import { Post } from '@blog/shared/src/models/Post';
-import { createServiceContext, ServiceContext } from '../../core/BaseService';
+import { createServiceContext } from '../../core/BaseService';
 
 export async function handleUpdateEntity(
     socket: Socket,
@@ -25,7 +25,8 @@ export async function handleUpdateEntity(
         switch (entityType) {
             case 'posts':
                 const postData = entityData as Partial<Post>;
-                const updatedPost = await services.postService.updatePostWithContext(context, entityId, postData);
+                services.postService.setContext(context);
+                const updatedPost = await services.postService.update(entityId, postData);
 
                 callback({
                     responseType: 'success',

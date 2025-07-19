@@ -18,7 +18,11 @@ export type PrismaModelDelegate = {
 /**
  * Configuration for the repository factory
  */
-export interface RepositoryConfig<TShared, TPrisma, TDelegate extends PrismaModelDelegate> {
+export interface RepositoryConfig<
+    TShared,
+    TPrisma,
+    TDelegate extends PrismaModelDelegate
+> {
     /** The Prisma model delegate (e.g., prisma.user, prisma.post) */
     delegate: TDelegate;
 
@@ -29,7 +33,7 @@ export interface RepositoryConfig<TShared, TPrisma, TDelegate extends PrismaMode
     mapToShared: (prismaEntity: TPrisma) => TShared;
 
     /** Function to map shared model to Prisma create input */
-    mapToCreateInput?: (sharedEntity: Omit<TShared, 'id' | 'createdAt' | 'updatedAt'>) => any;
+    mapToCreateInput?: (sharedEntity: Partial<TShared>) => any;
 
     /** Function to map shared model to Prisma update input */
     mapToUpdateInput?: (sharedEntity: Partial<TShared>) => any;
@@ -52,10 +56,14 @@ export interface RepositoryConfig<TShared, TPrisma, TDelegate extends PrismaMode
     columnFieldMapping: Record<string, string>;
 }
 
-export interface IBaseRepository<TShared extends Record<string, any>, TPrisma, TDelegate extends PrismaModelDelegate> {
+export interface IBaseRepository<
+    TShared extends Record<string, any>,
+    TPrisma,
+    TDelegate extends PrismaModelDelegate
+> {
     findAll(options?: QueryOptions<TShared>): Promise<PaginatedResult<TShared>>;
     findById(id: string): Promise<TShared | null>;
-    create(data: Omit<TShared, 'id' | 'createdAt' | 'updatedAt'>): Promise<TShared>;
+    create(data: Partial<TShared>): Promise<TShared>;
     update(id: string, data: Partial<TShared>): Promise<TShared>;
     delete(id: string): Promise<boolean>;
 }
@@ -63,7 +71,15 @@ export interface IBaseRepository<TShared extends Record<string, any>, TPrisma, T
 /**
  * Abstract base repository that provides common CRUD operations
  */
-export abstract class BaseRepository<TShared extends Record<string, any>, TPrisma, TDelegate extends PrismaModelDelegate> implements IBaseRepository<TShared, TPrisma, TDelegate> {
+export abstract class BaseRepository<
+    TShared extends Record<string, any>,
+    TPrisma,
+    TDelegate extends PrismaModelDelegate
+> implements IBaseRepository<
+    TShared,
+    TPrisma,
+    TDelegate
+> {
     protected config: RepositoryConfig<TShared, TPrisma, TDelegate>;
 
     constructor(
@@ -122,7 +138,7 @@ export abstract class BaseRepository<TShared extends Record<string, any>, TPrism
         }
     }
 
-    async create(data: Omit<TShared, 'id' | 'createdAt' | 'updatedAt'>): Promise<TShared> {
+    async create(data: Partial<TShared>): Promise<TShared> {
         try {
             const createInput = this.config.mapToCreateInput
                 ? this.config.mapToCreateInput(data)

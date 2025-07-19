@@ -24,7 +24,8 @@ export async function handleDeleteEntity(
         switch (entityType) {
             case 'posts':
                 // Use context-aware method that includes authorization
-                const deleted = await services.postService.deletePostWithContext(context, entityId);
+                services.postService.setContext(context);
+                const deleted = await services.postService.delete(entityId);
 
                 if (deleted) {
                     callback({

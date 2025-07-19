@@ -40,7 +40,7 @@ export class CategoryRepository extends BaseRepository<Category, CategoryPayload
                 createdAt: category.createdAt.toISOString(),
                 updatedAt: category.updatedAt.toISOString(),
             }),
-            mapToCreateInput: (data: Omit<Category, 'id' | 'createdAt' | 'updatedAt'>) => ({
+            mapToCreateInput: (data: Partial<Category>) => ({
                 name: data.name,
                 slug: data.slug,
                 description: data.description,
